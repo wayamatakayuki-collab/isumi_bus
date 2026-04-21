@@ -1,0 +1,2319 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>夷隅小学校 学童スクールバス確認</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap');
+    body { font-family: 'Inter','Noto Sans JP',system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; -webkit-tap-highlight-color: transparent; }
+
+    ::-webkit-scrollbar{ width:8px; height:8px; }
+    ::-webkit-scrollbar-track{ background:#eef2ff; }
+    ::-webkit-scrollbar-thumb{ background:#cbd5e1; border-radius:10px; }
+    ::-webkit-scrollbar-thumb:hover{ background:#94a3b8; }
+
+    /* ★A4縦向きに固定（@media の外に出す方が安定） */
+    @page{ size:A4 portrait; margin:7mm; }
+
+    @media print{
+  .no-print{ display:none !important; }
+
+  /* =========================
+     ★Edge白紙ページ対策（追加）
+     1) body の min-h-screen(=min-height:100vh) を印刷では無効化
+     2) section-print の space-y-* が display:none でも余白を作るのを無効化
+     3) fixed系（オーバーレイ/トースト/モーダル）を完全排除
+  ========================= */
+  html, body{
+    height:auto !important;
+    min-height:auto !important;
+  }
+
+  #section-print{
+    padding:0 !important;
+    margin:0 !important;
+  }
+  /* Tailwindのspace-y-*対策（display:noneでもmarginが残ることがある） */
+  #section-print > :not([hidden]) ~ :not([hidden]){
+    margin-top:0 !important;
+  }
+
+  #login-overlay, #cloud-error-overlay, #modal,
+  #toast, #toast *{
+    display:none !important;
+  }
+
+  /* 印刷時は印刷コンテンツだけ表示 */
+  header,
+  #section-overview,
+  #section-check,
+  #section-monitor,
+  #section-settings{
+    display:none !important;
+  }
+
+  /* hidden が付いていても印刷だけは出す（印刷タブの中身） */
+  #section-print{
+    display:block !important;
+  }
+
+  body{
+    background:white !important;
+    margin:0 !important;
+    padding:0 !important;
+
+    /* ★Edge白紙対策：100vh系・スクロール系を印刷では解除 */
+    height:auto !important;
+    min-height:auto !important;
+    overflow:visible !important;
+
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-shell{
+    max-width:100% !important;
+    width:100% !important;
+    padding:0 !important;
+    margin:0 !important;
+  }
+
+  /* プレビュー枠の余白/装飾を落として印刷を綺麗に */
+  #print-content{
+    padding:0 !important;
+    margin:0 !important;
+    border:none !important;
+    box-shadow:none !important;
+    background:transparent !important;
+    overflow:visible !important;
+  }
+
+  /* =========================
+     ★白紙ページ対策（ここが肝）
+     - 末尾の改ページ(after)をやめる
+     - 2枚目以降の「前」で改ページ
+  ========================= */
+  #print-content .print-page{
+    display:block;
+    width:100%;
+    margin:0 !important;
+
+    /* 末尾改ページを禁止（白紙ページ根絶） */
+    page-break-after:auto !important;
+    break-after:auto !important;
+
+    /* 途中分割も抑止 */
+    page-break-inside:avoid !important;
+    break-inside:avoid !important;
+  }
+
+  /* 2ページ目以降の前で改ページ */
+  #print-content .print-page + .print-page{
+    page-break-before:always !important;
+    break-before:page !important;
+  }
+
+  /* ★念押し：最後のページの末尾で“強制的に次ページ”を作らせない */
+  #print-content > .print-page:last-child{
+    page-break-after:auto !important;
+    break-after:auto !important;
+  }
+
+  /* 以降は既存スタイル（そのまま） */
+  .print-card{ border:2px solid #000 !important; box-shadow:none !important; }
+
+  .print-title{
+    border-bottom:3px solid #000 !important;
+    padding-bottom:2.2mm !important;
+    margin-bottom:2.2mm !important;
+  }
+  .print-title .print-title-en{ font-size:13pt !important; font-weight:900 !important; line-height:1.1 !important; }
+  .print-title .print-title-ja{ font-size:10.5pt !important; font-weight:900 !important; line-height:1.15 !important; }
+
+  table{ width:100% !important; border-collapse:collapse !important; table-layout:fixed !important; }
+  th,td{ border:1px solid #000 !important; vertical-align:middle; }
+
+  .td-name{ font-weight:900 !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .td-stop{ white-space:normal; overflow-wrap:anywhere; word-break:break-word; }
+  .td-class{ font-weight:900 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; text-align:center !important; }
+
+  .print-bus-card{
+    border:2px solid #000 !important;
+    padding:2.0mm !important;
+    page-break-inside:avoid;
+    break-inside:avoid;
+  }
+  .print-bus-title{
+    font-size:10.5pt !important;
+    font-weight:900 !important;
+    margin:0 0 1.6mm 0 !important;
+    line-height:1.1 !important;
+  }
+
+  .print-bus-card .td-name,
+  .print-bus-card .td-class{
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+  }
+
+  .print-bus-card table th{
+    background:#f3f4f6 !important;
+    font-size:7.0pt !important;
+    padding:1.0mm 1.0mm !important;
+    line-height:1.02 !important;
+  }
+  .print-bus-card table td{
+    font-size:7.4pt !important;
+    padding:1.0mm 1.0mm !important;
+    line-height:1.02 !important;
+  }
+  .print-bus-card table tbody tr{ height:4.05mm; }
+
+  .print-page.bus-sheet{ padding:2.0mm !important; }
+  .bus-sheet .print-title{
+    padding-bottom:1.6mm !important;
+    margin-bottom:1.6mm !important;
+    border-bottom:3px solid #000 !important;
+  }
+  .bus-sheet .print-title .print-title-en{ font-size:11pt !important; }
+  .bus-sheet .print-title .print-title-ja{ font-size:9.2pt !important; }
+
+  /* ★差し替え：印刷時は grid をやめる（Chrome/Edgeの“最後に白紙ページ”対策） */
+  .print-bus-sheet{ display:block !important; }
+  .print-bus-sheet .print-bus-card{ margin:0 0 2.2mm 0 !important; }
+  .print-bus-sheet .print-bus-card:last-child{ margin-bottom:0 !important; }
+
+  /* 便別名簿も、学級担任控え名簿に近い見やすさへ調整 */
+  .print-bus-sheet .print-bus-card{ padding:3mm !important; }
+  .print-bus-sheet .print-bus-title{ font-size:12pt !important; margin:0 0 2mm 0 !important; }
+  .print-bus-class-summary{
+    display:flex !important;
+    flex-wrap:wrap !important;
+    gap:1.5mm !important;
+    margin:0 0 2.5mm 0 !important;
+  }
+  .print-bus-class-chip{
+    display:inline-block !important;
+    padding:1mm 2mm !important;
+    border:1px solid #000 !important;
+    border-radius:2mm !important;
+    font-weight:900 !important;
+    font-size:9pt !important;
+    line-height:1.1 !important;
+  }
+  .print-bus-sheet .print-bus-card table th{ font-size:8.5pt !important; padding:5px 6px !important; line-height:1.15 !important; }
+  .print-bus-sheet .print-bus-card table td{ font-size:9pt !important; padding:5px 6px !important; line-height:1.15 !important; }
+  .print-bus-sheet .print-bus-card table tbody tr{ height:6.4mm; }
+
+  .print-row-absent{
+    background: repeating-linear-gradient(
+      -45deg,
+      #e5e7eb 0,
+      #e5e7eb 4px,
+      #f8fafc 4px,
+      #f8fafc 8px
+    ) !important;
+    color:#475569 !important;
+  }
+
+
+  .print-class-card{
+    border:2px solid #000 !important;
+    padding:3mm !important;
+    margin-bottom:5mm !important;
+    page-break-inside:avoid;
+    break-inside:avoid;
+  }
+  .print-class-title{
+    font-size:12pt !important;
+    font-weight:900 !important;
+    margin-bottom:2mm !important;
+  }
+
+  .compact td{ font-size:9pt !important; padding:5px 6px !important; }
+  .compact th{ font-size:8.5pt !important; padding:5px 6px !important; }
+}
+
+
+
+    .tap{ transition:transform .08s ease, box-shadow .08s ease; }
+    .tap:active{ transform:scale(.98); }
+
+    .tab-active{
+      background:#eff6ff;
+      border-bottom:3px solid #2563eb;
+      color:#1e3a8a;
+      font-weight:900;
+    }
+
+    .chip{ display:inline-flex; align-items:center; gap:.35rem; padding:.18rem .5rem; border-radius:.65rem; font-weight:900; font-size:11px; border:1px solid transparent; white-space:nowrap; line-height:1; }
+    .chip-none{ background:#f8fafc; color:#64748b; border-color:#e2e8f0; }
+    .chip-ride{ background:#dbeafe; color:#1e40af; border-color:#bfdbfe; }
+    .chip-absent{ background:#f1f5f9; color:#475569; border-color:#e2e8f0; }
+    .chip-pickup{ background:#dcfce7; color:#14532d; border-color:#bbf7d0; }
+    .chip-other{ background:#fef3c7; color:#78350f; border-color:#fde68a; }
+
+    .bus-u{ background-color:#dbeafe; color:#1e40af; border:1px solid #bfdbfe; }
+    .bus-s{ background-color:#fef3c7; color:#92400e; border:1px solid #fde68a; }
+    .bus-t{ background-color:#ffe4e6; color:#9f1239; border:1px solid #fecdd3; }
+
+    .toast-in{ animation:toastIn .18s ease-out; }
+    @keyframes toastIn{ from{ transform:translateY(8px); opacity:0; } to{ transform:translateY(0); opacity:1; } }
+
+    .modal-backdrop{ background:rgba(15,23,42,.55); }
+
+    /* ヘッダーのピルが縮んで縦書きになるのを防止（JSでclassが上書きされても効く） */
+    #cloud-pill, #auth-pill { white-space: nowrap; flex-shrink: 0; }
+  </style>
+
+  <!-- Firebase（このJSは window.firebase を使うので必須） -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+</head>
+
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <!-- Login Overlay（SchoolCal方式：設定画面なし。ログイン後、自動でクラウド共有） -->
+  <div id="login-overlay" class="fixed inset-0 z-[60] hidden">
+    <div class="absolute inset-0 bg-slate-950/60"></div>
+    <div class="relative max-w-md mx-auto mt-16 px-4">
+      <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
+        <div class="p-5 border-b border-slate-200 flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white grid place-items-center font-black">☁</div>
+          <div class="min-w-0">
+            <div class="text-lg font-black">夷隅小学校 クラウド共有ログイン</div>
+            <div class="text-xs font-bold text-slate-500">ログイン後、自動で同期します</div>
+          </div>
+        </div>
+        <div class="p-5 space-y-4">
+          <div>
+            <div class="text-[11px] font-black text-slate-400 tracking-widest uppercase">ID</div>
+            <input id="login-email" class="mt-2 w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 font-bold outline-none focus:ring-2 focus:ring-blue-500" placeholder="bus@isumisho.local" />
+          </div>
+          <div>
+            <div class="text-[11px] font-black text-slate-400 tracking-widest uppercase">Password</div>
+            <input id="login-password" type="password" class="mt-2 w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 font-bold outline-none focus:ring-2 focus:ring-blue-500" placeholder="パスワード" />
+          </div>
+
+          <div id="login-error" class="hidden px-3 py-2 rounded-2xl bg-rose-50 border border-rose-100 text-rose-700 text-xs font-black"></div>
+
+          <button id="btn-login" class="tap w-full px-6 py-3 rounded-2xl bg-slate-900 text-white font-black shadow-xl hover:bg-black">
+            ログイン
+          </button>
+
+          <div class="text-[11px] font-bold text-slate-500">
+            ※ 既存の Firebase Auth アカウントでログインしてください<br/>
+            © 2026 Takayuki WAYAMA
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cloud Error Overlay（クラウド必須：失敗時にローカルへ黙って落ちない） -->
+  <div id="cloud-error-overlay" class="fixed inset-0 z-[55] hidden">
+    <div class="absolute inset-0 bg-slate-950/60"></div>
+    <div class="relative max-w-2xl mx-auto mt-14 px-4">
+      <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
+        <div class="p-5 border-b border-slate-200 flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl bg-rose-600 text-white grid place-items-center font-black">!</div>
+          <div class="min-w-0">
+            <div class="text-lg font-black">クラウド接続に失敗しました</div>
+            <div class="text-xs font-bold text-slate-500">このアプリはクラウド共有前提です。下記を確認してください。</div>
+          </div>
+        </div>
+        <div class="p-5 space-y-3 text-sm">
+          <div id="cloud-error-msg" class="px-3 py-2 rounded-2xl bg-rose-50 border border-rose-100 text-rose-700 font-black"></div>
+          <ul class="list-disc pl-5 text-slate-700 font-bold space-y-1">
+            <li>Firestore Rules が <span class="font-black">bus@isumisho.local</span> に read/write を許可しているか</li>
+            <li>Authentication（Email/Password）が有効で、ユーザーが作成済みか</li>
+            <li>Authorized domains に GitHub Pages のドメインを追加したか</li>
+            <li>下のコード内 <span class="font-black">PRESET_FIREBASE_CONFIG</span> が正しいか</li>
+          </ul>
+          <button id="btn-cloud-error-close" class="tap px-5 py-3 rounded-2xl bg-slate-900 text-white font-black shadow-xl hover:bg-black">
+            閉じる（確認したら再読み込み）
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ★差し替え済みヘッダー：日付をタイトル左／スマホ・タブレットは2〜3行に折り返しOK -->
+  <header class="no-print sticky top-0 z-40 bg-white/75 backdrop-blur-md border-b border-slate-200">
+    <div class="max-w-[1400px] mx-auto px-3 py-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- 日付：タイトルの左 -->
+        <div class="shrink-0">
+          <div class="flex items-center gap-2 bg-slate-100 rounded-2xl p-2 border border-slate-200">
+            <button id="btn-prev-day" class="tap px-3 py-2 rounded-xl bg-white border border-slate-200 shadow-sm text-xs font-black hover:bg-slate-50" title="前日">◀</button>
+            <input id="date-picker" type="date" class="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500" />
+            <button id="btn-next-day" class="tap px-3 py-2 rounded-xl bg-white border border-slate-200 shadow-sm text-xs font-black hover:bg-slate-50" title="翌日">▶</button>
+          </div>
+        </div>
+
+        <!-- タイトル：残り幅を使い、狭いと折り返し -->
+        <div class="flex items-center gap-2 min-w-[220px] flex-1">
+          <div class="w-10 h-10 rounded-2xl bg-blue-600 shadow-lg shadow-blue-100 grid place-items-center shrink-0">
+            <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                d="M4 17V7a2 2 0 0 1 2-2h9.5a2 2 0 0 1 1.4.6L20 8.7a2 2 0 0 1 .6 1.4V17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/>
+              <path stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M4 10h16"/>
+            </svg>
+          </div>
+
+          <div class="min-w-0 leading-tight">
+            <div class="text-base md:text-lg font-black tracking-tight truncate">
+              いすみ市立夷隅小学校 学童スクールバス確認
+            </div>
+            <div class="text-[11px] font-bold text-slate-400 truncate">学童利用児童のみ / 便は管理者が設定</div>
+          </div>
+        </div>
+
+        <!-- 右：ピル＋全画面（狭いと次行へ） -->
+        <div class="shrink-0 flex items-center gap-2">
+          <div id="cloud-pill" class="px-3 py-2 rounded-2xl border text-xs font-black bg-white border-slate-200 text-slate-500 whitespace-nowrap">☁ 未接続</div>
+          <div id="auth-pill" class="px-3 py-2 rounded-2xl border text-xs font-black bg-white border-slate-200 text-slate-500 whitespace-nowrap">👤 未ログイン</div>
+          <button id="btn-fullscreen" class="tap px-3 py-2 rounded-2xl bg-slate-900 text-white text-xs font-black shadow-lg hover:bg-black whitespace-nowrap">全画面</button>
+        </div>
+
+        <!-- タブ：スマホ/タブレットは次の行に落としてOK（横スクロール可） -->
+        <nav class="w-full md:w-auto md:ml-auto">
+          <div class="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 flex-nowrap whitespace-nowrap overflow-x-auto">
+            <button class="px-4 py-2 rounded-xl text-xs md:text-sm transition-all tab-active" id="tab-check" onclick="UI.switchTab('check')">担任確認</button>
+            <button class="px-4 py-2 rounded-xl text-xs md:text-sm transition-all text-slate-500" id="tab-monitor" onclick="UI.switchTab('monitor')">全校モニタ</button>
+            <button class="px-4 py-2 rounded-xl text-xs md:text-sm transition-all text-slate-500" id="tab-print" onclick="UI.switchTab('print')">印刷</button>
+            <button class="px-4 py-2 rounded-xl text-xs md:text-sm transition-all text-slate-500" id="tab-settings" onclick="UI.switchTab('settings')">管理者</button>
+          </div>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-shell" class="print-shell max-w-[1400px] mx-auto px-4 py-6 space-y-6">
+    <!-- Overview -->
+    <section id="section-overview" class="no-print grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-[11px] font-black text-slate-400 tracking-widest uppercase">日付</div>
+            <div class="text-2xl font-black tracking-tight" id="today-label">----</div>
+            <div class="text-xs font-bold text-slate-500 mt-1" id="run-label">※ 学童利用児童のみについて、担任が「行く / 行かない」を確認してください。</div>
+          </div>
+          <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 grid place-items-center">
+            <svg class="w-7 h-7 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0-4-4m4 4-4 4M4 17h12m0 0-4 4m4-4-4-4"/>
+            </svg>
+          </div>
+        </div>
+        <div class="mt-4 flex flex-wrap gap-2" id="class-progress-badges"></div>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-[11px] font-black text-slate-400 tracking-widest uppercase">全校 行く（確認済）</div>
+            <div class="text-4xl font-black tracking-tight text-slate-900" id="school-ride-count">--</div>
+            <div class="text-xs font-bold text-slate-500 mt-1" id="school-ride-sub">--</div>
+          </div>
+          <div class="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 grid place-items-center">
+            <svg class="w-7 h-7 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M20 7 10 17l-5-5"/>
+            </svg>
+          </div>
+        </div>
+        <div class="mt-4 flex flex-wrap gap-2" id="bus-summary-chips"></div>
+      </div>
+    </section>
+
+    <!-- 1) Check -->
+    <section id="section-check" class="space-y-4">
+      <div class="no-print bg-white border border-slate-200 rounded-3xl p-4 shadow-sm flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] font-black text-slate-400 tracking-widest uppercase">学級</span>
+          <select id="class-filter" class="bg-slate-100 border border-slate-200 px-4 py-2 rounded-2xl font-black text-blue-700 outline-none focus:ring-2 focus:ring-blue-500"></select>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] font-black text-slate-400 tracking-widest uppercase">検索</span>
+          <input id="student-search" placeholder="氏名 / バス停" class="bg-slate-100 border border-slate-200 px-4 py-2 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500 w-56" />
+        </div>
+
+        <div class="flex items-center gap-2" id="class-bus-summary"></div>
+
+        <div class="ml-auto flex flex-wrap items-center gap-2">
+          <button id="btn-class-done" class="tap px-5 py-2 rounded-2xl text-sm font-black border-2 border-blue-600 text-blue-700 hover:bg-blue-50">学級確認を完了</button>
+          <button id="btn-class-unlock" class="tap px-4 py-2 rounded-2xl text-xs font-black bg-slate-100 border border-slate-200 hover:bg-slate-200 hidden">ロック解除</button>
+
+          <button id="btn-mark-all-ride" class="tap px-4 py-2 rounded-2xl text-xs font-black bg-blue-600 text-white shadow-lg shadow-blue-100 hover:bg-blue-700">全員 行く</button>
+          <button id="btn-mark-all-clear" class="tap px-4 py-2 rounded-2xl text-xs font-black bg-slate-200 text-slate-700 hover:bg-slate-300">全員 行かない</button>
+        </div>
+      </div>
+
+      <div id="check-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-3"></div>
+
+      <div class="no-print text-xs text-slate-500 font-bold">
+        使い方：担任は学童利用児童について <span class="font-black text-slate-700">行く</span> / <span class="font-black text-slate-700">行かない</span> を確認します。便は管理者が当日分を設定し、印刷・全校モニタへ自動反映されます。
+      </div>
+    </section>
+
+    <!-- 2) Monitor -->
+    <section id="section-monitor" class="hidden space-y-2">
+      <div class="no-print flex flex-wrap items-center gap-2">
+        <div id="monitor-summary" class="flex-1 min-w-[260px] bg-white border border-slate-200 rounded-2xl px-3 py-2 shadow-sm flex flex-wrap items-center gap-2"></div>
+
+        <div class="flex items-center gap-2">
+          <select id="monitor-filter" class="bg-white border border-slate-200 px-3 py-2 rounded-2xl text-xs font-black outline-none">
+            <option value="all">すべて</option>
+            <option value="pending">未完了学級のみ</option>
+            <option value="done">完了学級のみ</option>
+          </select>
+          <button id="btn-monitor-refresh" class="tap px-4 py-2 rounded-2xl bg-slate-900 text-white text-xs font-black hover:bg-black">更新</button>
+        </div>
+      </div>
+
+      <div id="monitor-fit-root" class="no-print bg-white border border-slate-200 rounded-2xl p-0 shadow-sm overflow-hidden">
+        <div id="monitor-fit" class="origin-top-left">
+          <div id="monitor-grid" class="flex flex-row flex-nowrap gap-2"></div>
+        </div>
+      </div>
+
+      <div class="no-print text-[11px] font-bold text-slate-500">
+        ※ 画面に収まらない場合は自動縮小して全員表示します。便別の人数は当日の管理者設定を反映します。
+      </div>
+    </section>
+
+    <!-- 3) Print -->
+    <section id="section-print" class="hidden space-y-4">
+      <div class="no-print bg-white border border-slate-200 rounded-3xl p-5 shadow-sm flex flex-wrap items-center gap-3">
+        <div class="mr-auto">
+          <div class="text-lg font-black text-slate-800">印刷プレビュー</div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] font-black text-slate-400 tracking-widest uppercase">形式</span>
+          <select id="print-mode" class="bg-slate-100 border border-slate-200 px-4 py-2 rounded-2xl font-black outline-none">
+            <option value="bus">便別名簿</option>
+            <option value="class">学級確認控え</option>
+          </select>
+        </div>
+
+        <button onclick="window.print()" class="tap px-8 py-3 rounded-2xl bg-slate-900 text-white font-black shadow-xl hover:bg-black flex items-center">
+          <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+            <path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 14h12v8H6z"/>
+          </svg>
+          印刷する
+        </button>
+      </div>
+
+      <div id="print-content" class="bg-white rounded-3xl border border-slate-200 shadow-inner p-6"></div>
+    </section>
+
+    <!-- 4) Settings -->
+    <section id="section-settings" class="hidden space-y-6 no-print">
+      <!-- SchoolCal方式：Firebase設定貼り付け等は置かない。ログイン＆クラウド共有のみ表示 -->
+      <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+        <div class="flex flex-wrap items-start gap-4">
+          <div class="mr-auto">
+            <div class="text-xl font-black text-slate-800">クラウド共有（ログイン）</div>
+            <div class="text-xs font-bold text-slate-500 mt-1">
+              ※ ログイン後、自動的に同期します。
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button id="btn-logout" class="tap px-5 py-2 rounded-2xl bg-slate-100 border border-slate-200 text-sm font-black hover:bg-slate-200">ログアウト</button>
+            <button id="btn-save-config" class="tap px-5 py-2 rounded-2xl bg-blue-600 text-white text-sm font-black shadow-lg shadow-blue-100 hover:bg-blue-700">設定を保存</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-5">
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+            <div class="text-[11px] font-black text-slate-400 tracking-widest uppercase">表示名（更新者表示）</div>
+            <input id="cfg-display-name" class="mt-2 w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 font-bold outline-none focus:ring-2 focus:ring-blue-500" placeholder="例：担任名 / 職員室" />
+          </div>
+
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+            <div class="text-[11px] font-black text-slate-400 tracking-widest uppercase">ログイン状態</div>
+            <div class="mt-2 space-y-2">
+              <div id="settings-auth" class="px-3 py-2 rounded-2xl border text-xs font-black bg-white border-slate-200 text-slate-600">--</div>
+              <div id="settings-cloud" class="px-3 py-2 rounded-2xl border text-xs font-black bg-white border-slate-200 text-slate-600">--</div>
+            </div>
+            <div class="text-[11px] font-bold text-slate-500 mt-2">
+              ※ 共有は Firestore（school_bus）に保存されます
+            </div>
+          </div>
+
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+            <div class="text-[11px] font-black text-slate-400 tracking-widest uppercase">保存先</div>
+            <div class="mt-2 space-y-2 text-xs font-bold text-slate-700">
+              <div>School ID：<span class="font-black" id="settings-schoolid">--</span></div>
+              <div>Project ID：<span class="font-black" id="settings-projectid">--</span></div>
+            </div>
+            <div class="text-[11px] font-bold text-slate-500 mt-2">
+              ※ firebaseConfigはコード内に埋め込み済み
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Run Settings -->
+      <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="mr-auto">
+            <div class="text-xl font-black text-slate-800">便の振り分け（当日設定）</div>
+            <div class="text-xs font-bold text-slate-500 mt-1">※ 原則は曜日ごとの固定便です。変更がある日だけ管理者が修正してください。</div>
+          </div>
+          <button id="btn-reset-busnames" class="tap px-4 py-2 rounded-2xl bg-white border border-slate-200 text-xs font-black text-slate-700 hover:bg-slate-50">曜日の初期値に戻す</button>
+        </div>
+
+        <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+            <div class="text-[11px] font-black text-slate-400 tracking-widest uppercase">固定便ルール</div>
+            <div id="weekday-rule-summary" class="mt-3 space-y-2 text-sm font-bold text-slate-700"></div>
+          </div>
+
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+            <div class="text-[11px] font-black text-slate-400 tracking-widest uppercase">表示中の日付の設定</div>
+            <div class="mt-2 text-sm font-black text-slate-800" id="admin-date-label">--</div>
+            <div class="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <label class="bg-white border border-slate-200 rounded-2xl px-3 py-3 font-black text-sm">1年
+                <select id="grade-run-1" class="mt-2 w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl font-black outline-none">
+                  <option value="1便">1便</option><option value="2便">2便</option>
+                </select>
+              </label>
+              <label class="bg-white border border-slate-200 rounded-2xl px-3 py-3 font-black text-sm">2年
+                <select id="grade-run-2" class="mt-2 w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl font-black outline-none">
+                  <option value="1便">1便</option><option value="2便">2便</option>
+                </select>
+              </label>
+              <label class="bg-white border border-slate-200 rounded-2xl px-3 py-3 font-black text-sm">3年
+                <select id="grade-run-3" class="mt-2 w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl font-black outline-none">
+                  <option value="1便">1便</option><option value="2便">2便</option>
+                </select>
+              </label>
+              <label class="bg-white border border-slate-200 rounded-2xl px-3 py-3 font-black text-sm">4年
+                <select id="grade-run-4" class="mt-2 w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl font-black outline-none">
+                  <option value="1便">1便</option><option value="2便">2便</option>
+                </select>
+              </label>
+              <label class="bg-white border border-slate-200 rounded-2xl px-3 py-3 font-black text-sm">5年
+                <select id="grade-run-5" class="mt-2 w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl font-black outline-none">
+                  <option value="1便">1便</option><option value="2便">2便</option>
+                </select>
+              </label>
+              <label class="bg-white border border-slate-200 rounded-2xl px-3 py-3 font-black text-sm">6年
+                <select id="grade-run-6" class="mt-2 w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl font-black outline-none">
+                  <option value="1便">1便</option><option value="2便">2便</option>
+                </select>
+              </label>
+            </div>
+            <div class="mt-4 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
+              <label class="bg-white border border-slate-200 rounded-2xl px-3 py-3 font-black text-sm">木曜たけのこ塾の便
+                <select id="cfg-takenoko-run" class="mt-2 w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl font-black outline-none">
+                  <option value="1便">1便</option><option value="2便">2便</option>
+                </select>
+              </label>
+              <button id="btn-save-run-config" class="tap px-5 py-3 rounded-2xl bg-blue-600 text-white text-sm font-black shadow-lg shadow-blue-100 hover:bg-blue-700">当日設定を保存</button>
+            </div>
+            <div class="text-[11px] font-bold text-slate-500 mt-3">※ 木曜日は「木曜たけのこ塾」にチェックした児童のみ、この便に自動振り分けされます。</div>
+          </div>
+        </div>
+      </div>
+
+<!-- Roster -->
+      <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="mr-auto">
+            <div class="text-xl font-black text-slate-800">名簿（基本設定）</div>
+            <div class="text-xs font-bold text-slate-500 mt-1">※ 日々の状態は日付ごとに保存。</div>
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <button id="btn-export-json" class="tap px-4 py-2 rounded-2xl bg-white border border-slate-200 text-xs font-black text-blue-700 hover:bg-blue-50">JSON 書き出し</button>
+            <button id="btn-export-csv" class="tap px-4 py-2 rounded-2xl bg-white border border-slate-200 text-xs font-black text-emerald-700 hover:bg-emerald-50">CSV 書き出し</button>
+
+            <label class="tap px-4 py-2 rounded-2xl bg-white border border-slate-200 text-xs font-black text-slate-700 hover:bg-slate-50 cursor-pointer">
+              CSV 読み込み
+              <input id="file-import-csv" type="file" accept=".csv,text/csv" class="hidden" />
+            </label>
+
+            <button id="btn-factory-reset" class="tap px-4 py-2 rounded-2xl bg-rose-50 border border-rose-100 text-xs font-black text-rose-700 hover:bg-rose-100">全データ初期化</button>
+          </div>
+        </div>
+
+        <div class="mt-5 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+          <div class="flex items-center gap-2 mb-3">
+            <span id="editor-dot" class="w-2 h-8 bg-blue-600 rounded-full"></span>
+            <div class="text-lg font-black" id="editor-title">児童の追加</div>
+            <div class="ml-auto text-xs font-bold text-slate-500" id="roster-count-label">全 -- 名</div>
+          </div>
+
+          <form id="student-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+            <input type="hidden" id="edit-id" />
+            <div>
+              <div class="text-[10px] font-black text-slate-400 uppercase ml-1">クラス (例: １年、６年２組)</div>
+              <input id="input-class" class="mt-1 w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 font-bold outline-none focus:ring-2 focus:ring-blue-500" placeholder="例：3年1組" required />
+            </div>
+            <div>
+              <div class="text-[10px] font-black text-slate-400 uppercase ml-1">出席番号</div>
+              <input id="input-num" type="number" class="mt-1 w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 font-bold outline-none focus:ring-2 focus:ring-blue-500" placeholder="例：12" required />
+            </div>
+            <div>
+              <div class="text-[10px] font-black text-slate-400 uppercase ml-1">氏名</div>
+              <input id="input-name" class="mt-1 w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 font-bold outline-none focus:ring-2 focus:ring-blue-500" placeholder="氏名" required />
+            </div>
+            <label class="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white border border-slate-200 font-black text-sm">
+              <input id="input-takenoko" type="checkbox" class="w-5 h-5" />
+              木曜たけのこ塾
+            </label>
+            <div class="lg:col-span-2 flex items-end gap-2">
+              <button id="btn-save" type="submit" class="tap w-full px-5 py-3 rounded-2xl bg-blue-600 text-white font-black shadow-lg shadow-blue-100 hover:bg-blue-700">追加</button>
+              <button id="btn-cancel-edit" type="button" class="tap hidden px-5 py-3 rounded-2xl bg-slate-200 text-slate-700 font-black hover:bg-slate-300">取消</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="mt-5 border border-slate-200 rounded-2xl overflow-hidden">
+          <div class="px-4 py-3 bg-white border-b border-slate-200 flex items-center gap-2">
+            <div class="text-sm font-black text-slate-700">登録済み名簿（学童利用児童）</div>
+            <div class="ml-auto text-xs font-bold text-slate-400">※ 並び：クラス→番号</div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left">
+              <thead class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                <tr>
+                  <th class="p-3">クラス</th>
+                  <th class="p-3">番号</th>
+                  <th class="p-3">氏名</th>
+                  <th class="p-3">木曜たけのこ塾</th>
+                  <th class="p-3 text-center">操作</th>
+                </tr>
+              </thead>
+              <tbody id="settings-list-body" class="divide-y divide-slate-100 font-medium text-sm"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast -->
+  <div class="fixed bottom-4 left-0 right-0 z-50 pointer-events-none">
+    <div id="toast" class="hidden toast-in mx-auto max-w-lg bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl pointer-events-auto">
+      <div class="text-sm font-black" id="toast-msg">--</div>
+    </div>
+  </div>
+
+<script>
+/* =========================
+   Bus Checker (下校のみ) v12.3-schoolcal-cloud
+   - SchoolCal方式：Firebase設定画面なし / ログイン後 自動クラウド同期（Firestore）
+   - クラウド必須：失敗時にローカルへ黙って落ちず、原因表示
+========================= */
+
+/* ★ここだけ差し替え（Firebase Console の Web config をコピペ） */
+const PRESET_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyA6M1MS2TtDJ2N5a4rdW7bWdL21lxd693s",
+  authDomain: "isumibus.firebaseapp.com",
+  projectId: "isumibus",
+  storageBucket: "isumibus.firebasestorage.app",
+  messagingSenderId: "1037233954345",
+  appId: "1:1037233954345:web:be0ddf757d9d9b8d814638",
+  measurementId: "G-0WH9ZMNHPJ"
+};
+
+
+/* 共有単位（学校ID） */
+const PRESET_SCHOOL_ID = "isumi-es";
+
+const APP = {
+  version: "v13.0-isumi-gakudo",
+  storageKey: "isumiSchoolBusV130",
+  defaultBusTypes: ["1便","2便"],
+  busTypes: ["1便","2便"],
+  statuses: [
+    { key:"none",   label:"未確認",   chip:"chip-none",   short:"未" },
+    { key:"ride",   label:"行く",     chip:"chip-ride",   short:"行" },
+    { key:"absent", label:"行かない", chip:"chip-absent", short:"休" }
+  ]
+};
+
+const $ = (sel)=>document.querySelector(sel);
+function esc(s){
+  return String(s ?? "").replace(/[&<>"']/g, (m)=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[m]));
+}
+
+// ---- Print / Class helpers (added) ----
+function toHalfWidthDigits(str){
+  return String(str ?? "").replace(/[０-９]/g, (d)=>String.fromCharCode(d.charCodeAt(0) - 0xFF10 + 0x30));
+}
+function formatClassLabel(cls){
+  const s = toHalfWidthDigits(cls);
+  let m = s.match(/^\s*(\d+)\s*[-‐ー－]\s*(\d+)\s*$/);
+  if(m) return `${m[1]}年${m[2]}組`;
+  m = s.match(/^\s*(\d+)\s*年\s*(\d+)\s*組\s*$/);
+  if(m) return `${m[1]}年${m[2]}組`;
+  m = s.match(/^\s*(\d+)\s*年\s*$/);
+  if(m) return `${m[1]}年`;
+  return String(cls ?? "");
+}
+// text length based font size fitting (approx.)
+function fitFontPt(text, basePt, maxChars, minPt){
+  const t = String(text ?? "");
+  if(!t) return basePt;
+  const len = Math.max(1, [...t].length); // count by code points
+  const maxC = Math.max(1, Number(maxChars) || len);
+  const base = Number(basePt) || 8;
+  const min = Number(minPt) || 6;
+  if(len <= maxC) return base;
+  const ratio = maxC / len;
+  const pt = base * ratio * 0.98;
+  return Math.max(min, Math.round(pt * 10) / 10);
+}
+function gradeFromClass(cls){
+  const s = toHalfWidthDigits(cls);
+  let m = s.match(/^\s*(\d)\s*[-‐ー－]/);
+  if(m) return m[1];
+  m = s.match(/^\s*(\d)\s*年/);
+  if(m) return m[1];
+  m = s.match(/(\d)\s*年/);
+  if(m) return m[1];
+  return "";
+}
+function shouldShowNoClubToggle(cls){
+  return false;
+}
+
+const WEEKDAY_RUN_RULES = {
+  0:{"1":"1便","2":"1便","3":"1便","4":"1便","5":"1便","6":"1便"},
+  1:{"1":"1便","2":"1便","3":"2便","4":"2便","5":"2便","6":"2便"},
+  2:{"1":"1便","2":"1便","3":"1便","4":"2便","5":"2便","6":"2便"},
+  3:{"1":"1便","2":"1便","3":"2便","4":"2便","5":"2便","6":"2便"},
+  4:{"1":"2便","2":"2便","3":"2便","4":"2便","5":"2便","6":"2便"},
+  5:{"1":"1便","2":"1便","3":"1便","4":"2便","5":"2便","6":"2便"},
+  6:{"1":"1便","2":"1便","3":"1便","4":"1便","5":"1便","6":"1便"}
+};
+function weekdayIndexFromDateKey(key){
+  const [y,m,d]=String(key||dateKey()).split('-').map(Number);
+  return new Date(y,m-1,d).getDay();
+}
+function getDefaultGradeRuns(dateK){
+  return { ...(WEEKDAY_RUN_RULES[weekdayIndexFromDateKey(dateK)] || WEEKDAY_RUN_RULES[0]) };
+}
+function getWeekdayRuleLines(){
+  return [
+    '月曜：1・2年 1便 / 3〜6年 2便',
+    '火曜：1〜3年 1便 / 4〜6年 2便',
+    '水曜：1・2年 1便 / 3〜6年 2便',
+    '木曜：1〜6年 2便 / 木曜たけのこ塾 2便',
+    '金曜：1〜3年 1便 / 4〜6年 2便'
+  ];
+}
+function getEffectiveGradeRuns(dateK){
+  const daily = State.dailyDoc || ensureDaily(dateK);
+  const base = getDefaultGradeRuns(dateK);
+  const saved = daily.gradeRuns || {};
+  return { ...base, ...saved };
+}
+function getTakenokoRun(dateK){
+  const daily = State.dailyDoc || ensureDaily(dateK);
+  return daily.takenokoRun || '2便';
+}
+function getAssignedRun(student, dateK=State.date){
+  const grade = gradeFromClass(student?.class || '');
+  const runs = getEffectiveGradeRuns(dateK);
+  const dow = weekdayIndexFromDateKey(dateK);
+  if(dow===4 && !!student?.takenoko){
+    return getTakenokoRun(dateK);
+  }
+  return runs[String(grade)] || '1便';
+}
+function runText(v){
+  const n = String(v || '').replace(/[^12]/g,'');
+  if(n === '1' || n === '2') return `${n}便`;
+  if(String(v || '').includes('1便')) return '1便';
+  if(String(v || '').includes('2便')) return '2便';
+  return '1便';
+}
+
+function nowTs(){ return Date.now(); }
+function dateKey(d=new Date()){
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,"0");
+  const da=String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${da}`;
+}
+function addDays(key, delta){
+  const [y,m,d]=key.split("-").map(Number);
+  const dt=new Date(y,m-1,d);
+  dt.setDate(dt.getDate()+delta);
+  return dateKey(dt);
+}
+function jpDateLabel(key){
+  const [y,m,d]=key.split("-").map(Number);
+  const dt=new Date(y,m-1,d);
+  const days=["日","月","火","水","木","金","土"];
+  return `${y}年 ${m}月${d}日 (${days[dt.getDay()]})`;
+}
+function fmtTime(ts){
+  if(!ts) return "--";
+  const dt=new Date(ts);
+  const hh=String(dt.getHours()).padStart(2,"0");
+  const mm=String(dt.getMinutes()).padStart(2,"0");
+  const ss=String(dt.getSeconds()).padStart(2,"0");
+  return `${hh}:${mm}:${ss}`;
+}
+function sanitizeBusTypes(arr, fallback){
+  const fb = Array.isArray(fallback) ? fallback : (APP.defaultBusTypes || ["1便","2便"]);
+  const a = Array.isArray(arr) ? arr.map(x=>String(x||"").trim()) : [];
+  const out = [0,1].map(i => a[i] || fb[i] || (APP.defaultBusTypes?.[i] || ""));
+  return out.map((x,i)=>x || (fb[i] || (APP.defaultBusTypes?.[i] || "")));
+}
+
+function busSlot(busName){
+  const b=String(busName||"").trim();
+  const types=APP.busTypes || [];
+  const idx = types.findIndex(x=>String(x||"").trim()===b);
+  if(idx>=0) return idx;
+  // keyword fallback（旧データ/想定外にも強く）
+  if(b.includes("上瀑")) return 0;
+  if(b.includes("総元")) return 1;
+  if(b.includes("市部") || b.includes("田代")) return 2;
+  return -1;
+}
+
+function busClass(busName){
+  const slot = busSlot(busName);
+  if(slot===0) return "bus-u";
+  if(slot===1) return "bus-s";
+  if(slot===2) return "bus-t";
+  return "bg-slate-100 text-slate-700 border border-slate-200";
+}
+function busShort(busName){ return String(busName||"") || "1便"; }
+
+function rideThemeForBus(busName){
+  const slot = busSlot(busName);
+  if(slot===0){
+    return { card:"bg-blue-600 border-blue-700 shadow-lg shadow-blue-100", name:"text-white", sub:"text-blue-50", menu:"bg-white/15 border-white/20 text-white hover:bg-white/20", note:"text-white bg-white/15 border-white/20" };
+  }
+  if(slot===1){
+    return { card:"bg-amber-400 border-amber-500 shadow-lg shadow-amber-100", name:"text-amber-950", sub:"text-amber-900", menu:"bg-white/40 border-white/40 text-amber-950 hover:bg-white/50", note:"text-amber-950 bg-white/35 border-white/40" };
+  }
+  if(slot===2){
+    return { card:"bg-rose-600 border-rose-700 shadow-lg shadow-rose-100", name:"text-white", sub:"text-rose-50", menu:"bg-white/15 border-white/20 text-white hover:bg-white/20", note:"text-white bg-white/15 border-white/20" };
+  }
+  return { card:"bg-blue-600 border-blue-700 shadow-lg shadow-blue-100", name:"text-white", sub:"text-blue-50", menu:"bg-white/15 border-white/20 text-white hover:bg-white/20", note:"text-white bg-white/15 border-white/20" };
+}
+function rideRowThemeForBus(busName){
+  const slot = busSlot(busName);
+  if(slot===0) return "bg-blue-50 border-blue-100";
+  if(slot===1) return "bg-amber-50 border-amber-100";
+  if(slot===2) return "bg-rose-50 border-rose-100";
+  return "bg-blue-50 border-blue-100";
+}
+
+function showToast(msg){
+  const t=$("#toast");
+  $("#toast-msg").textContent=msg;
+  t.classList.remove("hidden");
+  clearTimeout(showToast._to);
+  showToast._to=setTimeout(()=>t.classList.add("hidden"), 2200);
+}
+
+function normalizeStatus(k){
+  if(!k) return "none";
+  if(k==="off") return "none";
+  const ok = APP.statuses.some(x=>x.key===k);
+  return ok ? k : "none";
+}
+
+/* -------------------------
+   Local DB（表示名など端末ローカルに保持）
+------------------------- */
+function defaultDB(){
+  return {
+    config:{
+      displayName:"",
+      busTypes: ["1便","2便"],
+      noClubGrades:[],
+      schoolId: PRESET_SCHOOL_ID
+    },
+    roster:[
+      { id: 1, class:"1年", num:1, name:"サンプル 太郎", takenoko:false },
+      { id: 2, class:"3年", num:2, name:"サンプル 花子", takenoko:false },
+      { id: 3, class:"5年", num:3, name:"サンプル 次郎", takenoko:true },
+    ],
+    daily:{}
+  };
+}
+function loadDB(){
+  try{
+    const raw = localStorage.getItem(APP.storageKey);
+    const base = defaultDB();
+    if(raw){
+      const obj=JSON.parse(raw);
+      obj.config = { ...base.config, ...(obj.config||{}) };
+      obj.config.busTypes = sanitizeBusTypes(obj.config.busTypes, base.config.busTypes);
+      obj.roster ||= [];
+      obj.daily ||= {};
+      obj.config.schoolId = PRESET_SCHOOL_ID; // 強制
+      return obj;
+    }
+    return base;
+  }catch(e){
+    console.warn(e);
+    return defaultDB();
+  }
+}
+function saveDB(){ localStorage.setItem(APP.storageKey, JSON.stringify(DB)); }
+let DB = loadDB();
+APP.busTypes = sanitizeBusTypes(DB.config.busTypes, APP.defaultBusTypes);
+DB.config.busTypes = APP.busTypes.slice();
+(function normalizeBusTypesToTwoRuns(){
+  APP.busTypes = ["1便","2便"];
+  if(!DB.config) DB.config = {};
+  DB.config.busTypes = ["1便","2便"];
+  Object.keys(DB.daily || {}).forEach(k=>{
+    const d = DB.daily[k] || {};
+    if(d.gradeRuns){
+      Object.keys(d.gradeRuns).forEach(g=>{
+        if(String(d.gradeRuns[g]) === "2便") d.gradeRuns[g] = "2便";
+      });
+    }
+    if(String(d.takenokoRun || "") === "2便") d.takenokoRun = "2便";
+  });
+})();
+saveDB();
+
+/* -------------------------
+   State
+------------------------- */
+const State = {
+  tab:"check",
+  date: dateKey(),
+  cloudReady:false,
+  backend:null,
+  roster: DB.roster || [],
+  dailyDoc: null,
+  classLock:false,
+  activeClass:"",
+  monitorFilter:"all",
+  printMode:"bus"
+};
+
+function sortClassKey(a,b){ return a.localeCompare(b, undefined, {numeric:true, sensitivity:"base"}); }
+
+/* -------------------------
+   Daily helpers
+------------------------- */
+function ensureDaily(dateK){
+  DB.daily[dateK] ||= { states:{}, classDone:{}, gradeRuns:{}, takenokoRun:'2便', updatedAt:0, updatedBy:"" };
+  return DB.daily[dateK];
+}
+function getDailyState(dateK, studentId){
+  const daily = State.dailyDoc || ensureDaily(dateK);
+  const st = daily.states?.[studentId];
+  if(st){
+    return { ...st, status: normalizeStatus(st.status), noClub: !!st.noClub };
+  }
+  return { status:"none", note:"", ts:0, by:"", noClub:false };
+}
+function setDailyStateLocal(dateK, studentId, patch){
+  const daily = ensureDaily(dateK);
+  const prevRaw = daily.states[studentId] ? {...daily.states[studentId]} : { status:"none", note:"", ts:0, by:"", noClub:false };
+  const prev = { ...prevRaw, status: normalizeStatus(prevRaw.status) };
+  const next = { ...prev, ...patch, status: normalizeStatus(patch.status ?? prev.status), noClub: (patch.noClub ?? prev.noClub ?? false), ts: nowTs(), by:(DB.config.displayName || "—") };
+  daily.states[studentId] = next;
+  daily.updatedAt = nowTs();
+  daily.updatedBy = DB.config.displayName || "—";
+  saveDB();
+  return { prev, next };
+}
+function setClassDoneLocal(dateK, className, done){
+  const daily = ensureDaily(dateK);
+  daily.classDone ||= {};
+  daily.classDone[className]=!!done;
+  daily.updatedAt = nowTs();
+  daily.updatedBy = DB.config.displayName || "—";
+  saveDB();
+}
+
+/* -------------------------
+   Derived
+------------------------- */
+function derived(){
+  const roster = State.roster || [];
+  const classes = [...new Set(roster.map(s=>s.class))].sort(sortClassKey);
+
+  const daily = State.dailyDoc || { states:{}, classDone:{}, gradeRuns:{}, takenokoRun:'2便', updatedAt:0, updatedBy:"" };
+  const classDone = daily.classDone || {};
+
+  const rideCount = roster.filter(s => getDailyState(State.date, s.id).status === "ride").length;
+
+  const busCounts = Object.fromEntries(APP.busTypes.map(b=>[b,0]));
+  roster.forEach(s=>{
+    if(getDailyState(State.date, s.id).status==="ride"){
+      const run = getAssignedRun(s, State.date);
+      busCounts[run]=(busCounts[run]||0)+1;
+    }
+  });
+
+  const doneCount = classes.filter(c=>classDone[c]===true).length;
+  return { roster, classes, daily, classDone, rideCount, busCounts, doneCount };
+}
+
+
+function deriveBusTypesFromRoster(roster){
+  return ["1便","2便"];
+}
+function syncBusTypesFromRoster(roster){
+  APP.busTypes = ["1便","2便"];
+  DB.config.busTypes = APP.busTypes.slice();
+  saveDB();
+}
+
+function refreshBusSelectOptions(){
+  const sel = $("#input-bus");
+  if(!sel) return;
+  const current = String(sel.value||"").trim();
+  const list = (APP.busTypes || APP.defaultBusTypes || []).slice(0,2).filter(Boolean);
+  if(current && !list.includes(current)) list.push(current);
+  sel.innerHTML = list.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join("");
+  if(current) sel.value = current;
+}
+
+function mapBusToCurrent(busStr){
+  const b = String(busStr||"").trim();
+  if(!b) return "";
+  const types = (APP.busTypes || APP.defaultBusTypes || []).slice(0,2);
+  if(types.includes(b)) return b;
+
+  const def = (APP.defaultBusTypes || []).slice(0,2);
+  const iDef = def.indexOf(b);
+  if(iDef>=0 && types[iDef]) return types[iDef];
+
+  if(b.includes("上瀑")) return types[0] || b;
+  if(b.includes("総元")) return types[1] || b;
+  if(b.includes("市部") || b.includes("田代")) return types[2] || b;
+
+  return b;
+}
+
+/* -------------------------
+   Backend
+------------------------- */
+function createLocalBackend(){
+  let rosterListeners=[], dailyListeners=[];
+  return {
+    type:"local",
+    init: async()=>true,
+    subscribeRoster:(cb)=>{ rosterListeners.push(cb); cb(DB.roster); return ()=> rosterListeners = rosterListeners.filter(x=>x!==cb); },
+    saveRoster: async(roster)=>{ DB.roster = roster; saveDB(); rosterListeners.forEach(cb=>cb(DB.roster)); return true; },
+    subscribeDaily:(dateK, cb)=>{ dailyListeners.push(cb); cb(ensureDaily(dateK)); return ()=> dailyListeners = dailyListeners.filter(x=>x!==cb); },
+    updateStudent: async(dateK, studentId, patch)=>{ const r=setDailyStateLocal(dateK, studentId, patch); dailyListeners.forEach(cb=>cb(ensureDaily(dateK))); return r; },
+    updateClassDone: async(dateK, className, done)=>{ setClassDoneLocal(dateK, className, done); dailyListeners.forEach(cb=>cb(ensureDaily(dateK))); return true; },
+    updateDailyConfig: async(dateK, patch)=>{ const daily=ensureDaily(dateK); daily.gradeRuns = {...(daily.gradeRuns||{}), ...(patch.gradeRuns||{})}; if(Object.prototype.hasOwnProperty.call(patch, "takenokoRun")) daily.takenokoRun = patch.takenokoRun || "2便"; daily.updatedAt=nowTs(); daily.updatedBy=DB.config.displayName || "—"; saveDB(); dailyListeners.forEach(cb=>cb(ensureDaily(dateK))); return true; },
+  };
+}
+
+function hasValidFirebaseConfig(cfg){
+  return cfg && typeof cfg==="object" && String(cfg.projectId||"").trim() && !String(cfg.projectId).includes("YOUR_PROJECT");
+}
+
+function createCloudBackend(firebaseConfig, schoolId){
+  let app=null, fs=null, auth=null;
+  let unsubRoster=null, unsubDaily=null;
+
+  function pathBase(){
+    return fs.collection("school_bus").doc(String(schoolId||"default")).collection("data");
+  }
+  const rosterDocId="roster";
+
+  function requireSignedIn(){
+    if(!auth) auth = window.firebase.auth();
+    if(!auth.currentUser) throw new Error("未ログイン");
+    return true;
+  }
+
+  return {
+    type:"cloud",
+    init: async()=>{
+      if(!window.firebase || !window.firebase.initializeApp) throw new Error("Firebase SDKが読み込めません");
+      if(!hasValidFirebaseConfig(firebaseConfig)) throw new Error("PRESET_FIREBASE_CONFIG が未設定です");
+      app = window.firebase.apps?.length ? window.firebase.app() : window.firebase.initializeApp(firebaseConfig);
+      fs = window.firebase.firestore();
+      auth = window.firebase.auth();
+      return true;
+    },
+    subscribeRoster:(cb)=>{
+      requireSignedIn();
+      if(unsubRoster) unsubRoster();
+      unsubRoster = pathBase().doc(rosterDocId).onSnapshot((snap)=>{
+        const data=snap.data();
+        const roster=Array.isArray(data?.roster) ? data.roster : [];
+        cb(roster);
+      }, (err)=>{ console.warn(err); throw err; });
+      return ()=>{ if(unsubRoster) unsubRoster(); unsubRoster=null; };
+    },
+    saveRoster: async(roster)=>{
+      requireSignedIn();
+      await pathBase().doc(rosterDocId).set({ roster, updatedAt: window.firebase.firestore.FieldValue.serverTimestamp() }, {merge:true});
+      return true;
+    },
+    subscribeDaily:(dateK, cb)=>{
+      requireSignedIn();
+      if(unsubDaily) unsubDaily();
+      const docId=`daily_${dateK}`;
+      unsubDaily = pathBase().doc(docId).onSnapshot((snap)=>{
+        const data=snap.data()||{};
+        const states = data.states || {};
+        for(const sid of Object.keys(states)){
+          if(states[sid] && states[sid].status) states[sid].status = normalizeStatus(states[sid].status);
+        }
+        const daily={
+          states,
+          classDone: data.classDone || {},
+          gradeRuns: data.gradeRuns || {},
+          takenokoRun: data.takenokoRun || "2便",
+          updatedAt: data.updatedAt ? (data.updatedAt.toMillis ? data.updatedAt.toMillis() : data.updatedAt) : 0,
+          updatedBy: data.updatedBy || ""
+        };
+        cb(daily);
+      }, (err)=>{ console.warn(err); throw err; });
+      return ()=>{ if(unsubDaily) unsubDaily(); unsubDaily=null; };
+    },
+    updateStudent: async(dateK, studentId, patch)=>{
+      requireSignedIn();
+      const docId=`daily_${dateK}`;
+      const ref=pathBase().doc(docId);
+
+      const prevRaw = (State.dailyDoc?.states?.[studentId]) ? {...State.dailyDoc.states[studentId]} : { status:"none", note:"", ts:0, by:"", noClub:false };
+      const prev = { ...prevRaw, status: normalizeStatus(prevRaw.status) };
+      const next = { ...prev, ...patch, status: normalizeStatus(patch.status ?? prev.status), noClub: (patch.noClub ?? prev.noClub ?? false), ts: nowTs(), by:(DB.config.displayName || "—") };
+
+      const payload = {
+        states: { [String(studentId)]: next },
+        updatedBy: (DB.config.displayName || "—"),
+        updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
+      };
+      await ref.set(payload, { merge: true });
+
+      return {prev,next};
+    },
+    updateClassDone: async(dateK, className, done)=>{
+      requireSignedIn();
+      const docId=`daily_${dateK}`;
+      const ref=pathBase().doc(docId);
+      const payload = {
+        classDone: { [String(className)]: !!done },
+        updatedBy: (DB.config.displayName || "—"),
+        updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
+      };
+      await ref.set(payload, { merge: true });
+      return true;
+    },
+    updateDailyConfig: async(dateK, patch)=>{
+      requireSignedIn();
+      const docId=`daily_${dateK}`;
+      const ref=pathBase().doc(docId);
+      const payload = {
+        updatedBy: (DB.config.displayName || "—"),
+        updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
+      };
+      if(patch.gradeRuns) payload.gradeRuns = patch.gradeRuns;
+      if(Object.prototype.hasOwnProperty.call(patch, "takenokoRun")) payload.takenokoRun = patch.takenokoRun || "2便";
+      await ref.set(payload, { merge: true });
+      return true;
+    }
+  };
+}
+
+/* -------------------------
+   UI
+------------------------- */
+function setAuthPill(){
+  const auth = window.firebase?.auth?.();
+  const user = auth?.currentUser;
+  if(user){
+    $("#auth-pill").className="px-3 py-2 rounded-2xl border text-xs font-black bg-emerald-50 border-emerald-100 text-emerald-700";
+    $("#auth-pill").textContent=`👤 ${user.email || "ログイン中"}`;
+  }else{
+    $("#auth-pill").className="px-3 py-2 rounded-2xl border text-xs font-black bg-white border-slate-200 text-slate-500";
+    $("#auth-pill").textContent="👤 未ログイン";
+  }
+}
+function setCloudPill(){
+  if(State.cloudReady){
+    $("#cloud-pill").className="px-3 py-2 rounded-2xl border text-xs font-black bg-blue-50 border-blue-100 text-blue-700";
+    $("#cloud-pill").textContent="☁ 接続中";
+  }else{
+    $("#cloud-pill").className="px-3 py-2 rounded-2xl border text-xs font-black bg-white border-slate-200 text-slate-500";
+    $("#cloud-pill").textContent="☁ 未接続";
+  }
+}
+function showLogin(show){
+  $("#login-overlay").classList.toggle("hidden", !show);
+  $("#login-error").classList.add("hidden");
+  $("#login-error").textContent="";
+}
+function showCloudError(msg){
+  $("#cloud-error-msg").textContent = msg || "不明なエラー";
+  $("#cloud-error-overlay").classList.remove("hidden");
+}
+function hideCloudError(){
+  $("#cloud-error-overlay").classList.add("hidden");
+}
+
+/* -------------------------
+   UI + Actions（元コードほぼ維持）
+------------------------- */
+const UI = {
+  switchTab(tab){
+    State.tab=tab;
+    ["check","monitor","print","settings"].forEach(t=>{
+      $(`#section-${t}`).classList.toggle("hidden", t!==tab);
+      $(`#tab-${t}`).classList.toggle("tab-active", t===tab);
+      $(`#tab-${t}`).classList.toggle("text-slate-500", t!==tab);
+    });
+    $("#section-overview").classList.toggle("hidden", tab==="monitor");
+
+    const main = $("#main-shell");
+    if(main){
+      if(tab==="monitor"){
+        main.className = "print-shell w-screen max-w-none mx-0 px-2 py-3 space-y-3";
+      }else{
+        main.className = "print-shell max-w-[1400px] mx-auto px-4 py-6 space-y-6";
+      }
+    }
+
+    if(tab==="check") renderCheck();
+    if(tab==="monitor"){ renderMonitor(); layoutMonitor(); fitMonitor(); }
+    if(tab==="print") renderPrint();
+    if(tab==="settings") renderSettings();
+  }
+};
+
+const Actions = {
+  async quickToggle(studentId){
+    const st = getDailyState(State.date, studentId);
+    const nextStatus = (st.status === "ride") ? "absent" : "ride";
+    return await Actions.setStatus(studentId, nextStatus, st.note || "");
+  },
+
+  async toggleNoClub(studentId){
+    const st = getDailyState(State.date, studentId);
+    const next = !st.noClub;
+    return await Actions.setNoClub(studentId, next);
+  },
+
+  async setNoClub(studentId, noClub){
+    if(!State.backend){ showToast("未ログイン / 未接続です"); return; }
+    const s = State.roster.find(x=>String(x.id)===String(studentId));
+    if(!s) return;
+
+    if(State.classLock){
+      showToast("この学級は確認完了でロック中です（ロック解除して編集）");
+      return;
+    }
+
+    try{
+      // 乗車でない場合はトグル不可（UI側でも無効化）
+      const cur = getDailyState(State.date, studentId);
+      if(cur.status !== "ride"){
+        showToast("先に「乗車」を押してください");
+        return;
+      }
+      await State.backend.updateStudent(State.date, studentId, { noClub: !!noClub });
+      await State.backend.updateClassDone(State.date, s.class, false);
+      showToast(`${s.class} ${s.num} ${s.name}：${noClub ? "部活せず乗車" : "部活あり"}`);
+      return true;
+    }catch(e){
+      console.warn(e);
+      showToast("クラウド更新に失敗（権限/通信/ルール確認）");
+    }
+  },
+
+  async setStatus(studentId, statusKey, note){
+    if(!State.backend){ showToast("未ログイン / 未接続です"); return; }
+    const s = State.roster.find(x=>String(x.id)===String(studentId));
+    if(!s) return;
+
+    if(State.classLock){
+      showToast("この学級は確認完了でロック中です（ロック解除して編集）");
+      return;
+    }
+
+    try{
+      const cur = getDailyState(State.date, studentId);
+      const nextStatus = normalizeStatus(statusKey);
+      const patch = { status: nextStatus, note: note || "" , noClub: (nextStatus==="ride") ? !!cur.noClub : false };
+      await State.backend.updateStudent(State.date, studentId, patch);
+      await State.backend.updateClassDone(State.date, s.class, false);
+
+      const label = APP.statuses.find(x=>x.key===normalizeStatus(statusKey))?.label || statusKey;
+      showToast(`${s.class} ${s.num} ${s.name}：${label}`);
+      return true;
+    }catch(e){
+      console.warn(e);
+      showToast("クラウド更新に失敗（権限/通信/ルール確認）");
+    }
+  },
+
+  async saveDailyRuns(gradeRuns, takenokoRun){
+    if(!State.backend){ showToast("未ログイン / 未接続です"); return; }
+    await State.backend.updateDailyConfig(State.date, { gradeRuns, takenokoRun });
+    showToast("当日の便設定を保存しました");
+    renderAll();
+  },
+
+  async setClassDone(done){
+    if(!State.backend){ showToast("未ログイン / 未接続です"); return; }
+    const cls = $("#class-filter").value;
+    if(!cls) return;
+    await State.backend.updateClassDone(State.date, cls, !!done);
+    State.classLock = !!done;
+    renderCheck(); renderOverview();
+    showToast(done ? `${cls} 確認完了` : `${cls} 確認を解除`);
+  },
+
+  async unlockClass(){
+    const cls = $("#class-filter")?.value || "";
+    if(!cls){ showToast("学級が未選択です"); return; }
+
+    try{
+      if(State.backend){
+        await State.backend.updateClassDone(State.date, cls, false);
+      }else{
+        // ローカルのみの運用時
+        setClassDoneLocal(State.date, cls, false);
+      }
+      State.classLock = false;
+      renderCheck(); renderOverview();
+      showToast("ロック解除しました");
+    }catch(e){
+      console.warn(e);
+      showToast("ロック解除に失敗（通信/権限/ルール確認）");
+    }
+  },
+
+  async markAll(statusKey){
+    if(!State.backend){ showToast("未ログイン / 未接続です"); return; }
+    const cls = $("#class-filter").value;
+    const list = State.roster.filter(s=>s.class===cls).sort((a,b)=>a.num-b.num);
+    if(!list.length) return;
+
+    if(State.classLock){ showToast("ロック中です（ロック解除して編集）"); return; }
+
+    const label = APP.statuses.find(x=>x.key===normalizeStatus(statusKey))?.label || statusKey;
+    if(!confirm(`${cls} を一括で「${label}」にしますか？`)) return;
+
+    for(const s of list){
+      await Actions.setStatus(s.id, statusKey, getDailyState(State.date, s.id).note || "");
+      if(State.backend.type==="cloud") await new Promise(r=>setTimeout(r, 18));
+    }
+    showToast("一括反映しました");
+    renderCheck();
+  }
+};
+
+/* -------------------------
+   Rendering（元コード維持）
+------------------------- */
+function renderOverview(){
+  const { classes, classDone, rideCount, busCounts, doneCount } = derived();
+
+  $("#today-label").textContent = jpDateLabel(State.date);
+  $("#school-ride-count").textContent = `${rideCount}名`;
+  $("#school-ride-sub").textContent = `学級確認：${doneCount}/${classes.length} 学級`;
+
+  $("#bus-summary-chips").innerHTML = APP.busTypes.map(b=>{
+    const cnt = busCounts[b] || 0;
+    return `
+      <span class="chip chip-ride">
+        <span class="px-2 py-0.5 rounded-lg text-[10px] font-black ${busClass(b)}">${busShort(b)}</span>
+        <span>${b}：<span class="font-black">${cnt}名</span></span>
+      </span>
+    `;
+  }).join("");
+
+  $("#class-progress-badges").innerHTML = classes.map(c=>{
+    const done = classDone[c]===true;
+    return `
+      <div class="px-3 py-2 rounded-2xl border text-[11px] font-black ${done ? "bg-emerald-500 border-emerald-400 text-white shadow-lg shadow-emerald-100" : "bg-slate-100 border-slate-200 text-slate-500"}">
+        ${c} ${done ? "✓" : ""}
+      </div>
+    `;
+  }).join("");
+
+  setCloudPill();
+  setAuthPill();
+}
+
+/* ここから先（renderCheck〜）はユーザー貼付のまま */
+function renderCheck(){
+  const { roster, classes, classDone } = derived();
+  const filter=$("#class-filter");
+  const current = filter.value || State.activeClass || classes[0] || "";
+  State.activeClass=current;
+  filter.innerHTML = classes.map(c=>`<option value="${c}" ${c===current?'selected':''}>${c}</option>`).join("");
+
+  const selected = filter.value || current;
+  const isDone = classDone[selected]===true;
+  State.classLock = isDone;
+  $("#btn-class-unlock").classList.toggle("hidden", !isDone);
+
+  $("#btn-class-done").className = isDone
+    ? "tap px-5 py-2 rounded-2xl text-sm font-black bg-emerald-500 text-white shadow-lg shadow-emerald-100 hover:bg-emerald-600"
+    : "tap px-5 py-2 rounded-2xl text-sm font-black border-2 border-blue-600 text-blue-700 hover:bg-blue-50";
+  $("#btn-class-done").textContent = isDone ? "✓ 確認完了（ロック中）" : "学級確認を完了";
+
+  const classKids = roster.filter(s=>s.class===selected).sort((a,b)=>a.num-b.num);
+  $("#class-bus-summary").innerHTML = APP.busTypes.map(b=>{
+    const cnt = classKids.filter(s => getDailyState(State.date, s.id).status==="ride" && getAssignedRun(s, State.date)===b).length;
+    return `<span class="px-2 py-1 rounded-xl text-[11px] font-black ${busClass(b)}">${b} ${cnt}名</span>`;
+  }).join("");
+
+  const q = ($("#student-search").value || "").trim().toLowerCase();
+  const grid=$("#check-grid");
+  grid.innerHTML="";
+
+  const list = classKids.filter(s=>{
+    if(!q) return true;
+    return (`${s.name} ${s.class} ${getAssignedRun(s, State.date)} ${s.takenoko ? 'たけのこ塾' : ''}`).toLowerCase().includes(q);
+  });
+
+  list.forEach(s=>{
+    const st = getDailyState(State.date, s.id);
+    const info = APP.statuses.find(x=>x.key===st.status) || APP.statuses[0];
+    const locked = State.classLock;
+    const run = getAssignedRun(s, State.date);
+
+    let cardClass = "bg-white border-slate-200";
+    let nameClass = "text-slate-900";
+    let subClass  = "text-slate-600";
+    if(st.status==="ride"){
+      const t=rideThemeForBus(run);
+      cardClass=t.card; nameClass=t.name; subClass=t.sub;
+    }else if(st.status==="absent"){
+      cardClass = "bg-slate-200 border-slate-300";
+      nameClass = "text-slate-700"; subClass="text-slate-600";
+    }
+
+    const rideBtnClass = st.status==="ride"
+      ? "bg-white text-blue-700 border-white shadow-sm"
+      : "bg-blue-600 text-white border-blue-700 hover:bg-blue-700";
+    const absentBtnClass = st.status==="absent"
+      ? "bg-white text-slate-700 border-white shadow-sm"
+      : "bg-slate-700 text-white border-slate-800 hover:bg-slate-800";
+
+    const card=document.createElement("div");
+    card.className = `relative rounded-3xl border-2 p-3 h-[170px] flex flex-col justify-between ${cardClass} ${locked ? "pointer-events-none opacity-60" : ""}`;
+
+    card.innerHTML = `
+      <div class="flex items-center justify-between gap-2">
+        <div class="text-[10px] font-black ${st.status==="ride" ? "text-white/80" : "text-slate-400"}">NO.${s.num}</div>
+        <div class="flex items-center gap-2">
+          ${s.takenoko ? `<span class="px-2 py-1 rounded-xl border text-[10px] font-black ${st.status==='ride' ? 'bg-white/15 border-white/20 text-white' : 'bg-violet-50 border-violet-100 text-violet-700'}">木曜たけのこ塾</span>` : ""}
+          <span class="px-2 py-1 rounded-xl text-[11px] font-black ${busClass(run)}">${run}</span>
+        </div>
+      </div>
+
+      <div class="min-w-0">
+        <div class="font-black text-[19px] md:text-[20px] leading-tight truncate ${nameClass}">${s.name}</div>
+        <div class="mt-1 text-[11px] font-bold ${subClass}">${formatClassLabel(s.class)}</div>
+      </div>
+
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="chip ${info.chip}">${info.label}</span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <button class="tap px-3 py-2 rounded-2xl border text-sm font-black ${rideBtnClass}" onclick="Actions.setStatus('${s.id}','ride')">行く</button>
+        <button class="tap px-3 py-2 rounded-2xl border text-sm font-black ${absentBtnClass}" onclick="Actions.setStatus('${s.id}','absent')">行かない</button>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+
+  if(list.length===0){
+    grid.innerHTML = `
+      <div class="col-span-full bg-white border border-slate-200 rounded-3xl p-8 text-center text-slate-500">
+        <div class="text-lg font-black">該当する児童がいません</div>
+        <div class="text-xs font-bold mt-1">検索条件を確認してください。</div>
+      </div>
+    `;
+  }
+}
+
+function renderMonitor(){
+  const { roster, classes, classDone, busCounts, rideCount, doneCount } = derived();
+
+  $("#monitor-summary").innerHTML = `
+    <span class="px-2 py-1 rounded-xl bg-slate-900 text-white text-[11px] font-black">全校モニタ（学童バス）</span>
+    <span class="text-sm font-black text-slate-900">${jpDateLabel(State.date)}</span>
+    <span class="text-xs font-black text-slate-500">確認 ${doneCount}/${classes.length}</span>
+    <span class="text-sm font-black text-slate-900">行く ${rideCount}名</span>
+    ${APP.busTypes.map(b=>`
+      <span class="px-2 py-1 rounded-xl text-[11px] font-black ${busClass(b)}">${b} ${busCounts[b]||0}</span>
+    `).join("")}
+  `;
+
+  const filter = State.monitorFilter;
+  const grid = $("#monitor-grid");
+  grid.innerHTML="";
+
+  const rootEl = $("#monitor-fit-root");
+  const rootW = rootEl ? rootEl.clientWidth : 1200;
+
+  const showClasses = classes.filter(cls=>{
+    const done = classDone[cls]===true;
+    if(filter==="pending" && done) return false;
+    if(filter==="done" && !done) return false;
+    return true;
+  });
+
+  const n = Math.max(1, showClasses.length);
+  const gapPx = 8;
+  const computed = Math.floor((rootW - gapPx*(n-1)) / n);
+  const cardW = Math.min(360, Math.max(190, computed));
+
+  showClasses.forEach(cls=>{
+    const done = classDone[cls]===true;
+
+    const kids = roster.filter(s=>s.class===cls).sort((a,b)=>a.num-b.num);
+    const riders = kids.filter(s=>getDailyState(State.date, s.id).status==="ride");
+
+    const breakdown = APP.busTypes.map(b=>{
+      const cnt = riders.filter(s=>getAssignedRun(s, State.date)===b).length;
+      return `<span class="px-1.5 py-0.5 rounded-lg text-[10px] font-black ${busClass(b)}">${b} ${cnt}名</span>`;
+    }).join("");
+
+    const card = document.createElement("div");
+    card.className = `shrink-0 bg-white border border-slate-200 rounded-3xl p-2 shadow-sm`;
+    card.style.width = cardW + "px";
+
+    card.innerHTML = `
+      <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-1">
+        <div class="flex items-center gap-2">
+          <div class="text-xl font-black italic tracking-tight">${formatClassLabel(cls)}</div>
+          <span class="px-2 py-0.5 rounded-xl bg-slate-100 border border-slate-200 text-[11px] font-black">${riders.length}名</span>
+        </div>
+        <div class="text-[11px] font-black ${done ? "text-emerald-700" : "text-amber-700"}">
+          ${done ? "● 完了" : "○ 未完"}
+        </div>
+      </div>
+
+      <div class="mt-1 flex flex-wrap gap-1">${breakdown}</div>
+
+      <div class="mt-2 grid gap-1">
+        ${kids.map(s=>{
+          const st = getDailyState(State.date, s.id);
+          const info = APP.statuses.find(x=>x.key===st.status) || APP.statuses[0];
+          const run = getAssignedRun(s, State.date);
+
+          let rowBg = "bg-white border-slate-100";
+          if(st.status==="ride") rowBg = rideRowThemeForBus(run);
+          else if(st.status==="absent") rowBg="bg-slate-100 border-slate-200";
+
+          return `
+            <div class="grid grid-cols-[28px_1fr_48px] items-center gap-1 px-1.5 py-1 rounded-2xl border ${rowBg}">
+              <div class="w-[28px] h-6 rounded-xl bg-slate-900 text-white grid place-items-center font-black text-[11px] leading-none">${s.num}</div>
+
+              <div class="min-w-0 flex items-center gap-1.5">
+                <div class="min-w-0 font-black truncate" style="font-size:14px; line-height:1.15;">${s.name}</div>
+                <span class="px-1.5 py-0.5 rounded-lg text-[10px] font-black ${info.chip}">${info.short}</span>
+                ${s.takenoko ? '<span class="px-1.5 py-0.5 rounded-lg text-[10px] font-black bg-violet-50 border border-violet-100 text-violet-700">たけのこ</span>' : ''}
+              </div>
+
+              <div class="w-[48px] flex justify-end">
+                <span class="w-[48px] inline-flex justify-center px-0 py-0.5 rounded-lg text-[10px] font-black leading-none ${busClass(run)}">${run}</span>
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+
+  if(!grid.children.length){
+    grid.innerHTML = `
+      <div class="bg-white border border-slate-200 rounded-3xl p-10 text-center text-slate-500">
+        <div class="text-xl font-black">表示対象がありません</div>
+        <div class="text-xs font-bold mt-1">フィルタ設定を確認してください。</div>
+      </div>
+    `;
+  }
+}
+
+function renderPrint(){
+  const { roster, classes } = derived();
+  const mode = State.printMode;
+  const title = `学童スクールバス確認票（${jpDateLabel(State.date)}）`;
+
+  const container=$("#print-content");
+  container.innerHTML="";
+
+  const makeHeaderHTML = ()=>`
+    <div class="print-title flex flex-wrap items-end justify-between gap-2 border-b-4 border-black pb-2 mb-3">
+      <div class="print-title-en text-xl sm:text-2xl font-black tracking-tight italic">School Bus Check</div>
+      <div class="print-title-ja text-xs sm:text-base font-black">${title}</div>
+    </div>
+  `;
+
+  if(mode==="bus"){
+    const page=document.createElement("div");
+    page.className="print-page print-card bus-sheet rounded-3xl border border-slate-200 shadow-sm p-3";
+    page.innerHTML = makeHeaderHTML();
+
+    const sheet=document.createElement("div");
+    sheet.className="print-bus-sheet";
+
+    APP.busTypes.forEach(busName=>{
+      const rows = roster
+        .filter(s=>getAssignedRun(s, State.date)===busName)
+        .sort((a,b)=> a.class.localeCompare(b.class, undefined, {numeric:true}) || (a.num-b.num));
+
+      const card=document.createElement("div");
+      card.className="print-bus-card";
+
+      const classCounts = [...new Set(rows.map(s=>s.class))]
+        .sort((a,b)=> a.localeCompare(b, undefined, {numeric:true, sensitivity:"base"}))
+        .map(cls=>{
+          const cnt = rows.filter(s=>s.class===cls && getDailyState(State.date, s.id).status==="ride").length;
+          return `<span class="print-bus-class-chip">${esc(formatClassLabel(cls))} ${cnt}名</span>`;
+        }).join("");
+
+      const half = Math.ceil(rows.length/2);
+      const left = rows.slice(0, half);
+      const right = rows.slice(half);
+      const maxN = Math.max(left.length, right.length);
+
+      card.innerHTML = `
+        <div class="print-bus-title">■ ${busName}（${rows.filter(s=>getDailyState(State.date, s.id).status==="ride").length}名）</div>
+        <div class="print-bus-class-summary">${classCounts || `<span class="print-bus-class-chip">該当なし</span>`}</div>
+        <table>
+          <colgroup>
+            <col style="width:16%;"><col style="width:8%;"><col style="width:22%;"><col style="width:4%;">
+            <col style="width:16%;"><col style="width:8%;"><col style="width:22%;"><col style="width:4%;">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>クラス</th><th>番</th><th>氏名</th><th>□</th>
+              <th>クラス</th><th>番</th><th>氏名</th><th>□</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${maxN ? Array.from({length:maxN}).map((_,i)=>{
+              const a = left[i] || null;
+              const b = right[i] || null;
+              const aCls = a ? formatClassLabel(a.class) : "";
+              const bCls = b ? formatClassLabel(b.class) : "";
+              const aSt = a ? getDailyState(State.date, a.id) : null;
+              const bSt = b ? getDailyState(State.date, b.id) : null;
+              const aAbsent = !!a && aSt && aSt.status==="absent";
+              const bAbsent = !!b && bSt && bSt.status==="absent";
+              return `
+                <tr>
+                  <td class="td-class ${aAbsent ? "print-row-absent" : ""}">${a ? esc(aCls) : ""}</td>
+                  <td class="${aAbsent ? "print-row-absent" : ""}" style="text-align:center; font-weight:800; white-space:nowrap;">${a ? a.num : ""}</td>
+                  <td class="td-name ${aAbsent ? "print-row-absent" : ""}">${a ? esc(a.name) : ""}</td>
+                  <td class="${aAbsent ? "print-row-absent" : ""}" style="text-align:center; font-weight:900;">${a ? (aAbsent ? "×" : "□") : ""}</td>
+
+                  <td class="td-class ${bAbsent ? "print-row-absent" : ""}">${b ? esc(bCls) : ""}</td>
+                  <td class="${bAbsent ? "print-row-absent" : ""}" style="text-align:center; font-weight:800; white-space:nowrap;">${b ? b.num : ""}</td>
+                  <td class="td-name ${bAbsent ? "print-row-absent" : ""}">${b ? esc(b.name) : ""}</td>
+                  <td class="${bAbsent ? "print-row-absent" : ""}" style="text-align:center; font-weight:900;">${b ? (bAbsent ? "×" : "□") : ""}</td>
+                </tr>
+              `;
+            }).join("") : `<tr><td colspan="8" style="text-align:center; padding:3mm; font-weight:900; color:#64748b;">該当児童なし</td></tr>`}
+          </tbody>
+        </table>
+      `;
+
+      sheet.appendChild(card);
+    });
+
+    page.appendChild(sheet);
+    container.appendChild(page);
+    return;
+  }
+
+  let first = true;
+  classes.forEach(cls=>{
+    const kids = roster.filter(s=>s.class===cls).sort((a,b)=>a.num-b.num);
+    const page=document.createElement("div");
+    page.className="print-page print-class-card rounded-3xl border border-slate-200 shadow-sm p-4 mb-6";
+
+    const compactClass = kids.length > 26 ? "compact" : "";
+    const headerHTML = first ? makeHeaderHTML() : "";
+    first = false;
+
+    page.innerHTML = `
+      ${headerHTML}
+      <div class="print-class-title">■ ${formatClassLabel(cls)}（${kids.filter(s=>getDailyState(State.date, s.id).status==="ride").length}名）</div>
+      <div style="margin:0 0 2.5mm 0; display:flex; gap:1.5mm; flex-wrap:wrap;">
+        ${APP.busTypes.map(b=>{
+          const cnt = kids.filter(s=>getDailyState(State.date, s.id).status==="ride" && getAssignedRun(s, State.date)===b).length;
+          return `<span style="display:inline-block; padding:1mm 2mm; border:1px solid #000; border-radius:2mm; font-weight:900; font-size:9pt;">${b} ${cnt}名</span>`;
+        }).join("")}
+      </div>
+      <table class="${compactClass}">
+        <colgroup>
+          <col style="width:10%;"><col style="width:30%;"><col style="width:18%;"><col style="width:18%;"><col style="width:24%;">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>番号</th><th>氏名</th><th>確認</th><th>便</th><th>木曜たけのこ塾</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${kids.map(s=>{
+            const st=getDailyState(State.date, s.id);
+            const info=APP.statuses.find(x=>x.key===st.status) || APP.statuses[0];
+            return `
+              <tr>
+                <td style="text-align:center; font-weight:900; white-space:nowrap;">${s.num}</td>
+                <td class="td-name">${esc(s.name)}</td>
+                <td style="text-align:center; font-weight:900; white-space:nowrap;">${esc(info.label)}</td>
+                <td style="text-align:center; font-weight:900; white-space:nowrap;">${esc(getAssignedRun(s, State.date))}</td>
+                <td style="text-align:center; font-weight:900; white-space:nowrap;">${s.takenoko ? '○' : ''}</td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    `;
+    container.appendChild(page);
+  });
+}
+
+function layoutMonitor(){
+  const root=$("#monitor-fit-root");
+  if(!root) return;
+  const header=document.querySelector("header");
+  const headerH=header ? header.offsetHeight : 0;
+  const h = Math.max(360, window.innerHeight - headerH - 110);
+  root.style.height = h + "px";
+}
+function fitMonitor(){
+  if(State.tab!=="monitor") return;
+  const root=$("#monitor-fit-root");
+  const content=$("#monitor-fit");
+  if(!root || !content) return;
+  content.style.transform="scale(1)";
+  content.style.transformOrigin="top left";
+  const maxW = root.clientWidth;
+  const maxH = root.clientHeight;
+  const w = content.scrollWidth;
+  const h = content.scrollHeight;
+  if(w<=0 || h<=0) return;
+  const scale = Math.min(maxW / w, maxH / h);
+  const final = Math.min(scale, 1.9);
+  content.style.transform = `scale(${final})`;
+}
+
+/* -------------------------
+   CSV（元コード）
+------------------------- */
+function downloadBlob(content, filename, type="application/octet-stream"){
+  const blob = new Blob([content], {type});
+  const url = URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download=filename; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+function exportJSON(){
+  downloadBlob(JSON.stringify(State.roster,null,2), `bus_roster_${dateKey()}.json`, "application/json");
+}
+function exportCSV(){
+  const header=["id","class","num","name","takenoko"];
+  const lines=[header.join(",")].concat(
+    State.roster.slice()
+      .sort((a,b)=>a.class.localeCompare(b.class, undefined, {numeric:true}) || (a.num-b.num))
+      .map(s=>{
+        const row = { id:s.id, class:s.class, num:s.num, name:s.name, takenoko: s.takenoko ? 1 : 0 };
+        return header.map(k=>{
+          const v=(row[k] ?? "");
+          const q=String(v).replace(/"/g,'""');
+          return `"${q}"`;
+        }).join(",");
+      })
+  );
+  const csv = "\ufeff" + lines.join("\n");
+  downloadBlob(csv, `isumi_gakudo_roster_${dateKey()}.csv`, "text/csv;charset=utf-8");
+}
+function parseCSV(text){
+  const rows=[]; let i=0, field="", row=[], inQuotes=false;
+  while(i<text.length){
+    const c=text[i];
+    if(inQuotes){
+      if(c==='"' && text[i+1]==='"'){ field+='"'; i+=2; continue; }
+      if(c==='"'){ inQuotes=false; i++; continue; }
+      field+=c; i++; continue;
+    }else{
+      if(c==='"'){ inQuotes=true; i++; continue; }
+      if(c===','){ row.push(field); field=""; i++; continue; }
+      if(c==='\n'){ row.push(field); rows.push(row); field=""; row=[]; i++; continue; }
+      if(c==='\r'){ i++; continue; }
+      field+=c; i++; continue;
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows;
+}
+async function readCsvTextSmart(file){
+  const buf = await file.arrayBuffer();
+  const u8 = new Uint8Array(buf);
+  const hasUtf8Bom = u8.length>=3 && u8[0]===0xEF && u8[1]===0xBB && u8[2]===0xBF;
+
+  const tryDecode = (enc)=>{
+    try{ return new TextDecoder(enc, {fatal:false}).decode(buf); }
+    catch(e){ return null; }
+  };
+
+  let text = tryDecode("utf-8") ?? "";
+  if(hasUtf8Bom) text = text.replace(/^\uFEFF/, "");
+
+  if(text.includes(" □")){
+    const sjis = tryDecode("shift-jis");
+    if(sjis && !sjis.includes(" □")) text = sjis;
+  }
+
+  text = text.replace(/^\uFEFF/, "");
+  return text;
+}
+async function importCSV(file){
+  const text = await readCsvTextSmart(file);
+  const rows=parseCSV(text);
+  if(rows.length<2){ showToast("CSVが空です"); return; }
+
+  const header=rows[0].map(h=>String(h).trim());
+  const idx=(name)=>header.indexOf(name);
+  const required=["class","num","name"];
+  if(required.some(r=>idx(r)===-1)){
+    alert(`CSVヘッダに必要項目がありません。\n必要：${required.join(", ")}\n現在：${header.join(", ")}`);
+    return;
+  }
+
+  const roster = rows.slice(1)
+    .filter(r=>r.some(x=>String(x).trim()!==""))
+    .map(r=>{
+      const id = idx("id")>=0 ? Number(r[idx("id")]) : (Date.now()+Math.floor(Math.random()*10000));
+      const takenokoRaw = idx("takenoko")>=0 ? String(r[idx("takenoko")]||"").trim().toLowerCase() : "";
+      return {
+        id: id || (Date.now()+Math.floor(Math.random()*10000)),
+        class: String(r[idx("class")]||"").trim(),
+        num: Number(r[idx("num")]) || 0,
+        name: String(r[idx("name")]||"").trim(),
+        takenoko: ["1","true","yes","on","○","あり"].includes(takenokoRaw)
+      };
+    })
+    .filter(s=>s.class && s.num && s.name);
+
+  if(!roster.length){ showToast("取り込み対象がありません"); return; }
+  if(!confirm(`CSVを取り込みます。\n件数：${roster.length}名\n（現在の名簿を置き換えます）`)) return;
+
+  await State.backend.saveRoster(roster);
+  showToast("CSV取り込み完了");
+  renderAll();
+}
+
+/* -------------------------
+   Settings（UI変更に合わせて更新）
+------------------------- */
+const Settings = {
+  startEdit(id){
+    const s = State.roster.find(x=>String(x.id)===String(id));
+    if(!s) return;
+    $("#edit-id").value=s.id;
+    $("#input-class").value=s.class;
+    $("#input-num").value=s.num;
+    $("#input-name").value=s.name;
+    if($("#input-takenoko")) $("#input-takenoko").checked=!!s.takenoko;
+
+    $("#editor-dot").className="w-2 h-8 bg-amber-500 rounded-full";
+    $("#editor-title").textContent="児童情報の編集";
+    $("#btn-save").textContent="保存";
+    $("#btn-save").className="tap w-full px-5 py-3 rounded-2xl bg-amber-500 text-white font-black shadow-lg shadow-amber-100 hover:bg-amber-600";
+    $("#btn-cancel-edit").classList.remove("hidden");
+    window.scrollTo({ top:0, behavior:"smooth" });
+  },
+  cancelEdit(){
+    $("#student-form").reset();
+    $("#edit-id").value="";
+    if($("#input-takenoko")) $("#input-takenoko").checked=false;
+    $("#editor-dot").className="w-2 h-8 bg-blue-600 rounded-full";
+    $("#editor-title").textContent="児童の追加";
+    $("#btn-save").textContent="追加";
+    $("#btn-save").className="tap w-full px-5 py-3 rounded-2xl bg-blue-600 text-white font-black shadow-lg shadow-blue-100 hover:bg-blue-700";
+    $("#btn-cancel-edit").classList.add("hidden");
+  },
+  async deleteStudent(id){
+    const s = State.roster.find(x=>String(x.id)===String(id));
+    if(!s) return;
+    if(!confirm(`削除しますか？
+${s.class} ${s.num} ${s.name}`)) return;
+    const next = State.roster.filter(x=>String(x.id)!==String(id));
+    await State.backend.saveRoster(next);
+    showToast("削除しました");
+    renderAll();
+  }
+};
+
+function renderSettings(){
+  $("#cfg-display-name").value = DB.config.displayName || "";
+  $("#roster-count-label").textContent = `全 ${State.roster.length} 名`;
+
+  const auth = window.firebase?.auth?.();
+  const user = auth?.currentUser;
+
+  $("#settings-auth").textContent = user ? `ログイン中：${user.email || "user"}` : "未ログイン";
+  $("#settings-auth").className = user
+    ? "px-3 py-2 rounded-2xl border text-xs font-black bg-emerald-50 border-emerald-100 text-emerald-700"
+    : "px-3 py-2 rounded-2xl border text-xs font-black bg-white border-slate-200 text-slate-500";
+
+  $("#settings-cloud").textContent = State.cloudReady ? "クラウド：接続OK" : "クラウド：未接続";
+  $("#settings-cloud").className = State.cloudReady
+    ? "px-3 py-2 rounded-2xl border text-xs font-black bg-blue-50 border-blue-100 text-blue-700"
+    : "px-3 py-2 rounded-2xl border text-xs font-black bg-white border-slate-200 text-slate-500";
+
+  $("#settings-schoolid").textContent = PRESET_SCHOOL_ID;
+  $("#settings-projectid").textContent = String(PRESET_FIREBASE_CONFIG.projectId || "--");
+  $("#admin-date-label").textContent = `${jpDateLabel(State.date)} の便設定`;
+  $("#weekday-rule-summary").innerHTML = getWeekdayRuleLines().map(line=>`<div class="px-3 py-2 rounded-2xl bg-white border border-slate-200">${line}</div>`).join("");
+
+  const runs = getEffectiveGradeRuns(State.date);
+  for(let g=1; g<=6; g++){
+    const el = $(`#grade-run-${g}`);
+    if(el) el.value = runs[String(g)] || '1便';
+  }
+  if($("#cfg-takenoko-run")) $("#cfg-takenoko-run").value = getTakenokoRun(State.date);
+
+  $("#settings-list-body").innerHTML = State.roster.slice()
+    .sort((a,b)=>a.class.localeCompare(b.class, undefined, {numeric:true}) || (a.num-b.num))
+    .map(s=>`
+      <tr class="hover:bg-slate-50">
+        <td class="p-3 font-black text-blue-700">${esc(formatClassLabel(s.class))}</td>
+        <td class="p-3 font-black text-slate-500">${s.num}</td>
+        <td class="p-3 font-black">${esc(s.name)}</td>
+        <td class="p-3"><span class="px-2 py-1 rounded-xl text-[11px] font-black ${s.takenoko ? 'bg-violet-50 border border-violet-100 text-violet-700' : 'bg-slate-100 border border-slate-200 text-slate-500'}">${s.takenoko ? '対象' : 'なし'}</span></td>
+        <td class="p-3 text-center whitespace-nowrap">
+          <button class="tap px-3 py-2 rounded-2xl bg-blue-50 border border-blue-100 text-blue-700 text-xs font-black hover:bg-blue-100" onclick="Settings.startEdit('${s.id}')">編集</button>
+          <button class="tap px-3 py-2 rounded-2xl bg-rose-50 border border-rose-100 text-rose-700 text-xs font-black hover:bg-rose-100" onclick="Settings.deleteStudent('${s.id}')">削除</button>
+        </td>
+      </tr>
+    `).join("");
+}
+
+/* -------------------------
+   Subscriptions / Cloud apply
+------------------------- */
+let unsubRoster=null, unsubDaily=null;
+
+async function applyBackend(){
+  if(unsubRoster){ unsubRoster(); unsubRoster=null; }
+  if(unsubDaily){ unsubDaily(); unsubDaily=null; }
+  State.cloudReady=false;
+
+  const auth = window.firebase.auth();
+  if(!auth.currentUser){
+    State.backend=null;
+    State.cloudReady=false;
+    setCloudPill();
+    return;
+  }
+
+  try{
+    const backend = createCloudBackend(PRESET_FIREBASE_CONFIG, PRESET_SCHOOL_ID);
+    await backend.init();
+    State.backend=backend;
+
+    setupSubscriptions(); // ここで onSnapshot 開始
+    State.cloudReady=true;
+    setCloudPill();
+    renderAll();
+  }catch(e){
+    console.warn(e);
+    State.backend=null;
+    State.cloudReady=false;
+    setCloudPill();
+    showCloudError(String(e?.message || e));
+  }
+}
+
+function setupSubscriptions(){
+  unsubRoster = State.backend.subscribeRoster((roster)=>{
+    State.roster = Array.isArray(roster) ? roster : [];
+    DB.roster = State.roster; saveDB();
+    syncBusTypesFromRoster(State.roster);
+    const classes=[...new Set(State.roster.map(s=>s.class))].sort(sortClassKey);
+    if(!classes.includes(State.activeClass)) State.activeClass = classes[0] || "";
+    renderAll();
+  });
+
+  unsubDaily = State.backend.subscribeDaily(State.date, (daily)=>{
+    if(daily && daily.states){
+      for(const sid of Object.keys(daily.states)){
+        daily.states[sid].status = normalizeStatus(daily.states[sid].status);
+      }
+    }
+    State.dailyDoc=daily;
+    DB.daily[State.date]=daily; saveDB();
+    renderAll();
+    if(State.tab==="monitor"){ layoutMonitor(); fitMonitor(); }
+  });
+}
+function resubscribeDaily(){
+  if(!State.backend) return;
+  if(unsubDaily){ unsubDaily(); unsubDaily=null; }
+  unsubDaily = State.backend.subscribeDaily(State.date, (daily)=>{
+    if(daily && daily.states){
+      for(const sid of Object.keys(daily.states)){
+        daily.states[sid].status = normalizeStatus(daily.states[sid].status);
+      }
+    }
+    State.dailyDoc=daily;
+    DB.daily[State.date]=daily; saveDB();
+    renderAll();
+    if(State.tab==="monitor"){ layoutMonitor(); fitMonitor(); }
+  });
+}
+
+/* -------------------------
+   Bindings + Boot
+------------------------- */
+function renderAll(){
+  renderOverview();
+  if(State.tab==="check") renderCheck();
+  if(State.tab==="monitor"){ renderMonitor(); layoutMonitor(); fitMonitor(); }
+  if(State.tab==="print") renderPrint();
+  if(State.tab==="settings") renderSettings();
+}
+
+function bind(){
+  $("#date-picker").value = State.date;
+  $("#date-picker").addEventListener("change",(e)=>{
+    State.date = e.target.value || dateKey();
+    resubscribeDaily();
+  });
+  $("#btn-prev-day").onclick=()=>{ State.date=addDays(State.date,-1); $("#date-picker").value=State.date; resubscribeDaily(); };
+  $("#btn-next-day").onclick=()=>{ State.date=addDays(State.date, 1); $("#date-picker").value=State.date; resubscribeDaily(); };
+
+  $("#class-filter").addEventListener("change",()=>{ State.activeClass=$("#class-filter").value; renderCheck(); });
+  $("#student-search").addEventListener("input",()=>renderCheck());
+
+  $("#btn-class-done").onclick=()=>{
+    if(State.classLock){
+      showToast("ロック中です（解除は「ロック解除」を押してください）");
+      return;
+    }
+    Actions.setClassDone(true);
+  };
+  $("#btn-class-unlock").onclick=()=>Actions.unlockClass();
+  $("#btn-mark-all-ride").onclick=()=>Actions.markAll("ride");
+  $("#btn-mark-all-clear").onclick=()=>Actions.markAll("absent");
+
+  $("#monitor-filter").addEventListener("change",(e)=>{ State.monitorFilter=e.target.value; renderMonitor(); layoutMonitor(); fitMonitor(); });
+  $("#btn-monitor-refresh").onclick=()=>{ renderMonitor(); layoutMonitor(); fitMonitor(); showToast("更新しました"); };
+
+  $("#print-mode").addEventListener("change",(e)=>{ State.printMode=e.target.value; renderPrint(); });
+
+  $("#btn-fullscreen").onclick=async()=>{
+    try{
+      if(!document.fullscreenElement){
+        await document.documentElement.requestFullscreen();
+        showToast("全画面にしました");
+      }else{
+        await document.exitFullscreen();
+        showToast("全画面を解除しました");
+      }
+      if(State.tab==="monitor"){ layoutMonitor(); fitMonitor(); }
+    }catch(e){
+      showToast("全画面にできませんでした");
+    }
+  };
+
+  
+  $("#btn-save-config").onclick=async()=>{
+    DB.config.displayName=$("#cfg-display-name").value.trim();
+    DB.config.busTypes = ["1便","2便"];
+    DB.config.noClubGrades = [];
+    saveDB();
+    showToast("表示名を保存しました");
+    renderAll();
+  };
+
+  $("#btn-reset-busnames").onclick=async()=>{
+    const defaults = getDefaultGradeRuns(State.date);
+    for(let g=1; g<=6; g++){ const el=$(`#grade-run-${g}`); if(el) el.value = defaults[String(g)] || "1便"; }
+    if($("#cfg-takenoko-run")) $("#cfg-takenoko-run").value = "2便";
+    showToast("曜日の初期値を表示しました（保存で確定）");
+  };
+
+  $("#btn-save-run-config").onclick=async()=>{
+    const gradeRuns = {};
+    for(let g=1; g<=6; g++){ gradeRuns[String(g)] = runText($(`#grade-run-${g}`)?.value || "1便"); }
+    const takenokoRun = runText($("#cfg-takenoko-run")?.value || "2便");
+    await Actions.saveDailyRuns(gradeRuns, takenokoRun);
+  };
+
+  $("#btn-logout").onclick=async()=>{
+    try{
+      await window.firebase.auth().signOut();
+      showToast("ログアウトしました");
+    }catch(e){
+      console.warn(e);
+      showToast("ログアウト失敗");
+    }
+  };
+
+  $("#btn-cloud-error-close").onclick=()=>hideCloudError();
+
+  $("#btn-export-json").onclick=exportJSON;
+  $("#btn-export-csv").onclick=exportCSV;
+
+  $("#file-import-csv").addEventListener("change", async(e)=>{
+    const f=e.target.files?.[0];
+    if(!f) return;
+    await importCSV(f);
+    e.target.value="";
+  });
+
+  $("#btn-factory-reset").onclick=()=>{
+    if(!confirm("全データ（名簿・日々の状態・表示名）を初期化しますか？")) return;
+    localStorage.removeItem(APP.storageKey);
+    location.reload();
+  };
+
+  $("#student-form").addEventListener("submit", async(e)=>{
+    e.preventDefault();
+    if(!State.backend){ showToast("未ログイン / 未接続です"); return; }
+
+    const editId=$("#edit-id").value;
+    const item={
+      id: editId ? Number(editId) : (Date.now()+Math.floor(Math.random()*10000)),
+      class: $("#input-class").value.trim(),
+      num: Number($("#input-num").value) || 0,
+      name: $("#input-name").value.trim(),
+      takenoko: !!$("#input-takenoko").checked
+    };
+    if(!item.class || !item.num || !item.name){ showToast("入力を確認してください"); return; }
+
+    let roster=State.roster.slice();
+    if(editId){
+      const idx=roster.findIndex(s=>String(s.id)===String(editId));
+      if(idx>=0) roster[idx]=item;
+    }else{
+      roster.push(item);
+    }
+
+    await State.backend.saveRoster(roster);
+    Settings.cancelEdit();
+    showToast(editId ? "保存しました" : "追加しました");
+    renderAll();
+    $("#input-num").focus();
+  });
+
+  $("#btn-cancel-edit").onclick=()=>Settings.cancelEdit();
+
+  window.addEventListener("resize", ()=>{
+    if(State.tab==="monitor"){
+      layoutMonitor();
+      fitMonitor();
+    }
+  });
+
+  // login button
+  $("#btn-login").onclick = async ()=>{
+    const email = ($("#login-email").value || "").trim();
+    const pass  = ($("#login-password").value || "").trim();
+
+    $("#login-error").classList.add("hidden");
+    $("#login-error").textContent="";
+
+    try{
+      if(!hasValidFirebaseConfig(PRESET_FIREBASE_CONFIG)){
+        throw new Error("PRESET_FIREBASE_CONFIG が未設定です（コード内のYOUR_...を差し替え）");
+      }
+      await window.firebase.auth().setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
+      await window.firebase.auth().signInWithEmailAndPassword(email, pass);
+      showToast("ログインしました");
+    }catch(e){
+      console.warn(e);
+      $("#login-error").textContent = String(e?.message || e);
+      $("#login-error").classList.remove("hidden");
+    }
+  };
+
+  // 初期値（夷隅小用ID）
+  $("#login-email").value = "bus@isumisho.local";
+  $("#login-password").value = "";
+}
+
+/* 5秒ごとUIハートビート */
+function startHeartbeat(){
+  setInterval(()=>{
+    if(State.tab==="monitor"){
+      layoutMonitor();
+      fitMonitor();
+    }
+  }, 5000);
+}
+
+async function initFirebaseOrDie(){
+  if(!window.firebase) throw new Error("Firebase SDKが読み込めません");
+  if(!hasValidFirebaseConfig(PRESET_FIREBASE_CONFIG)){
+    throw new Error("PRESET_FIREBASE_CONFIG が未設定です（YOUR_...を差し替え）");
+  }
+  // initializeApp は backend 側でも行うが、Auth listener のため先に安全に初期化
+  if(!window.firebase.apps?.length){
+    window.firebase.initializeApp(PRESET_FIREBASE_CONFIG);
+  }
+}
+
+/* 起動 */
+window.addEventListener("DOMContentLoaded", async ()=>{
+  bind();
+  try{
+    await initFirebaseOrDie();
+  }catch(e){
+    console.warn(e);
+    showCloudError(String(e?.message || e));
+    showLogin(false);
+    return;
+  }
+
+  // Auth state listener
+  window.firebase.auth().onAuthStateChanged(async (user)=>{
+    setAuthPill();
+    if(user){
+      showLogin(false);
+      hideCloudError();
+      await applyBackend();
+      UI.switchTab("check");
+    }else{
+      // 未ログイン：購読解除 + ログイン画面表示
+      if(unsubRoster){ unsubRoster(); unsubRoster=null; }
+      if(unsubDaily){ unsubDaily(); unsubDaily=null; }
+      State.backend=null;
+      State.cloudReady=false;
+      setCloudPill();
+      showLogin(true);
+    }
+    renderAll();
+  });
+
+  startHeartbeat();
+});
+</script>
+</body>
+</html>
